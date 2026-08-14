@@ -3079,8 +3079,9 @@ function boot() {
 /* Login screen */
 const APP_AUTH_SESSION_KEY='pth_app_auth_session_v1';
 function saveAppSession(user,remember=true){
-  const session={username:user.username,expiresAt:Date.now()+30*24*60*60*1000},target=remember?localStorage:sessionStorage,other=remember?sessionStorage:localStorage;
-  other.removeItem(APP_AUTH_SESSION_KEY);target.setItem(APP_AUTH_SESSION_KEY,JSON.stringify(session));
+  localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);
+  if(!remember)return;
+  localStorage.setItem(APP_AUTH_SESSION_KEY,JSON.stringify({username:user.username,expiresAt:Date.now()+30*24*60*60*1000}));
 }
 function restoreAppSession(){
   let session=null;
@@ -3091,6 +3092,15 @@ function restoreAppSession(){
   DB.user={name:user.name,role:user.role,initials:user.initials};return user;
 }
 async function signOut(){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);await window.PTHBackend?.signOut?.();location.href=location.pathname;}
+async function storePasswordInBrowser(user,password){
+  if(!document.getElementById('loginSavePassword')?.checked)return;
+  if(!window.PasswordCredential||!navigator.credentials?.store)return;
+  try{await navigator.credentials.store(new PasswordCredential({id:user.username,name:user.name,password}));}catch(error){}
+}
+async function fillPasswordFromBrowser(){
+  if(!window.PasswordCredential||!navigator.credentials?.get)return;
+  try{const credential=await navigator.credentials.get({password:true,mediation:'optional'});if(!credential)return;const user=DB.users.find(item=>item.username===credential.id&&item.status==='active');if(!user)return;const select=document.getElementById('loginUser'),password=document.getElementById('loginPass');if(select)select.value=user.username;if(password)password.value=credential.password||'';}catch(error){}
+}
 function renderLogin() {
   document.getElementById('app').innerHTML = `
     <div class="login-wrap">
@@ -3112,8 +3122,8 @@ function renderLogin() {
           <div class="field"><label>Username</label>
             <select class="input" id="loginUser" onchange="loginPickUser()">${DB.users.filter(u=>u.status==='active').map((u,i)=>`<option value="${u.username}" ${i===0?'selected':''}>${u.name} — ${u.role}</option>`).join('')}</select>
           </div>
-          <div class="field"><label>Password</label><input class="input" type="password" id="loginPass" value="${DEMO_PASSWORD}" autocomplete="current-password"></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" id="loginRemember" onclick="this.classList.toggle('on')"></span>Remember me</label><a style="font-size:12.5px;color:var(--primary-dark);font-weight:600">Forgot password?</a></div>
+          <div class="field"><label>Password</label><input class="input" type="password" id="loginPass" value="${window.PTHBackend?.enabled?'':DEMO_PASSWORD}" autocomplete="current-password"></div>
+          <div style="display:grid;gap:10px;margin-bottom:18px"><label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-secondary)"><input type="checkbox" id="loginSavePassword">Save password in this browser</label><label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-secondary)"><input type="checkbox" id="loginKeepSignedIn" checked>Keep me signed in after refresh</label><a style="font-size:12.5px;color:var(--primary-dark);font-weight:600">Forgot password?</a></div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign In ${I.arrowR}</button>
           <div style="text-align:center;margin:16px 0;color:var(--text-muted);font-size:12px">or</div>
           <button class="btn btn-ghost" style="width:100%;justify-content:center">${I.shield}Single Sign-On (SSO)</button>
@@ -3121,18 +3131,19 @@ function renderLogin() {
         </div>
       </div>
     </div>`;
+  setTimeout(fillPasswordFromBrowser,0);
 }
 function loginPickUser() {
   const uname = document.getElementById('loginUser').value;
   const u = DB.users.find(x => x.username === uname);
-  if (u) document.getElementById('loginPass').value = u.password || DEMO_PASSWORD;
+  if (u&&!window.PTHBackend?.enabled) document.getElementById('loginPass').value = u.password || DEMO_PASSWORD;
 }
 async function doLogin() {
   const uname = document.getElementById('loginUser')?.value;
   const passInput = document.getElementById('loginPass');
   const password = passInput?.value || '';
   const u = DB.users.find(x => x.username === uname);
-  const remember=document.getElementById('loginRemember')?.classList.contains('on')!==false;
+  const remember=document.getElementById('loginKeepSignedIn')?.checked===true;
   if (window.PTHBackend?.enabled) {
     try {
       await window.PTHBackend.signIn(u?.email || `${uname}@pramukhtesthouse.com`, password);
@@ -3141,7 +3152,7 @@ async function doLogin() {
       passInput?.focus();
       return;
     }
-    saveAppSession(u,remember);location.reload();
+    await storePasswordInBrowser(u,password);saveAppSession(u,remember);location.reload();
     return;
   } else if (!u || u.status !== 'active' || password !== (u.password || DEMO_PASSWORD)) {
     toast('Sign-in failed', 'Check the selected user and password.', 'err');
@@ -3149,6 +3160,7 @@ async function doLogin() {
     return;
   }
   DB.user = { name: u.name, role: u.role, initials: u.initials };
+  await storePasswordInBrowser(u,password);
   saveAppSession(u,remember);
   u.lastLogin = nowStamp();
   logAudit('Login', 'Auth', `Signed in as ${DB.user.name} (${DB.user.role})`);
