@@ -3077,6 +3077,20 @@ function boot() {
 }
 
 /* Login screen */
+const APP_AUTH_SESSION_KEY='pth_app_auth_session_v1';
+function saveAppSession(user,remember=true){
+  const session={username:user.username,expiresAt:Date.now()+30*24*60*60*1000},target=remember?localStorage:sessionStorage,other=remember?sessionStorage:localStorage;
+  other.removeItem(APP_AUTH_SESSION_KEY);target.setItem(APP_AUTH_SESSION_KEY,JSON.stringify(session));
+}
+function restoreAppSession(){
+  let session=null;
+  for(const storage of [localStorage,sessionStorage]){try{const candidate=JSON.parse(storage.getItem(APP_AUTH_SESSION_KEY)||'null');if(candidate){session=candidate;break;}}catch(error){}}
+  if(!session||session.expiresAt<Date.now()){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);return null;}
+  const user=DB.users.find(item=>item.username===session.username&&item.status==='active');
+  if(!user){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);return null;}
+  DB.user={name:user.name,role:user.role,initials:user.initials};return user;
+}
+async function signOut(){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);await window.PTHBackend?.signOut?.();location.href=location.pathname;}
 function renderLogin() {
   document.getElementById('app').innerHTML = `
     <div class="login-wrap">
@@ -3099,7 +3113,7 @@ function renderLogin() {
             <select class="input" id="loginUser" onchange="loginPickUser()">${DB.users.filter(u=>u.status==='active').map((u,i)=>`<option value="${u.username}" ${i===0?'selected':''}>${u.name} — ${u.role}</option>`).join('')}</select>
           </div>
           <div class="field"><label>Password</label><input class="input" type="password" id="loginPass" value="${DEMO_PASSWORD}" autocomplete="current-password"></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" onclick="this.classList.toggle('on')"></span>Remember me</label><a style="font-size:12.5px;color:var(--primary-dark);font-weight:600">Forgot password?</a></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" id="loginRemember" onclick="this.classList.toggle('on')"></span>Remember me</label><a style="font-size:12.5px;color:var(--primary-dark);font-weight:600">Forgot password?</a></div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign In ${I.arrowR}</button>
           <div style="text-align:center;margin:16px 0;color:var(--text-muted);font-size:12px">or</div>
           <button class="btn btn-ghost" style="width:100%;justify-content:center">${I.shield}Single Sign-On (SSO)</button>
@@ -3118,6 +3132,7 @@ async function doLogin() {
   const passInput = document.getElementById('loginPass');
   const password = passInput?.value || '';
   const u = DB.users.find(x => x.username === uname);
+  const remember=document.getElementById('loginRemember')?.classList.contains('on')!==false;
   if (window.PTHBackend?.enabled) {
     try {
       await window.PTHBackend.signIn(u?.email || `${uname}@pramukhtesthouse.com`, password);
@@ -3126,7 +3141,7 @@ async function doLogin() {
       passInput?.focus();
       return;
     }
-    location.reload();
+    saveAppSession(u,remember);location.reload();
     return;
   } else if (!u || u.status !== 'active' || password !== (u.password || DEMO_PASSWORD)) {
     toast('Sign-in failed', 'Check the selected user and password.', 'err');
@@ -3134,6 +3149,7 @@ async function doLogin() {
     return;
   }
   DB.user = { name: u.name, role: u.role, initials: u.initials };
+  saveAppSession(u,remember);
   u.lastLogin = nowStamp();
   logAudit('Login', 'Auth', `Signed in as ${DB.user.name} (${DB.user.role})`);
   boot();
@@ -3143,12 +3159,14 @@ async function doLogin() {
 /* ---------- Init ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
-  if (window.PTHBackend?.enabled && window.PTHBackend.hasSession()) { boot(); return; }
+  const restoredUser=restoreAppSession();
+  if (window.PTHBackend?.enabled && window.PTHBackend.hasSession() && restoredUser) { boot(); return; }
+  if (!window.PTHBackend?.enabled && restoredUser) { boot(); return; }
   if (params.get('skip') === '1' && !window.PTHBackend?.enabled) { boot(); return; }
   renderLogin();
 });
 
 // Expose for inline handlers and cross-module import persistence.
-Object.assign(window, { persistUsers, persistBranding, persistCredentials, persistScopes, resetQuotationFilters });
+Object.assign(window, { persistUsers, persistBranding, persistCredentials, persistScopes, resetQuotationFilters, signOut });
 Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, setTenderFilter, openTenderModal, saveTender, openTenderDrawer, persistTenders, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });
