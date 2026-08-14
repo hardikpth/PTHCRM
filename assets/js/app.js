@@ -2001,7 +2001,15 @@ let savedQuotations = (() => {
   return [];
 })();
 function persistQuotations(){ localStorage.setItem(QUOTATION_KEY,JSON.stringify(savedQuotations)); }
-function nextQuotationNumber(){ const max=Math.max(0,...savedQuotations.map(q=>+(String(q.number).match(/(\d+)$/)?.[1]||0))); return `PTH/QTN/2026/${String(max+1).padStart(4,'0')}`; }
+function quotationFinancialYear(dateValue=localDateISO()){
+  const date=new Date(`${String(dateValue).slice(0,10)}T00:00:00`),year=date.getFullYear(),start=date.getMonth()>=3?year:year-1;
+  return `${String(start).slice(-2)}-${String(start+1).slice(-2)}`;
+}
+function quotationDateCode(dateValue=localDateISO()){return String(dateValue).slice(0,10).replace(/-/g,'');}
+function nextQuotationNumber(dateValue=localDateISO()){
+  const fy=quotationFinancialYear(dateValue),pattern=new RegExp(`^PTH/${fy.replace('-','\\-')}/\\d{8}/(\\d+)$`),max=Math.max(0,...savedQuotations.map(q=>+(String(q.number).match(pattern)?.[1]||0)));
+  return `PTH/${fy}/${quotationDateCode(dateValue)}/${String(max+1).padStart(3,'0')}`;
+}
 const QUOTE_LAYOUT_KEY='pth_quotation_layout_v1';
 const QUOTE_LAYOUT_FAMILIES=[
   ['Executive Navy','#17324d','#d7e5f2','Inter'],['Laboratory Green','#176b4d','#dff2e9','Inter'],['PTH Orange','#d96b12','#fff0e3','Inter'],['Slate Professional','#334155','#e9eef4','Arial'],['Royal Blue','#1d4ed8','#e5edff','Arial'],
@@ -2192,8 +2200,8 @@ async function generateQuotationPdfBlob(q){
   startPage();
 
   // ---- meta block (first page only) ----
-  const leftPairs=[['Quotation No.',q.number],['Date',formatFollowupDate(q.date||localDateISO())],['Customer',q.customer]];
-  const rightPairs=[['Kind Attention',q.kindAttention||'-'],['Representative',rep.name],['Contact',rep.phone||'-']];
+  const leftPairs=[['Client Name',q.customer],['Date',formatFollowupDate(q.date||localDateISO())],['Representative',rep.name]];
+  const rightPairs=[['Kind Attention',q.kindAttention||'-'],['Contact',rep.phone||'-']];
   const rowsN=Math.max(leftPairs.length,rightPairs.length), mRow=15, boxH=rowsN*mRow+12, half=contentW/2;
   page.drawRectangle({x:M,y:y-boxH,width:contentW,height:boxH,borderColor:lineColor,borderWidth:.7,color:rgb(.986,.99,1)});
   const drawPairs=(pairs,ox)=>{let ry=y-16;pairs.forEach(([l,v])=>{page.drawText(l+':',{x:ox,y:ry,size:8,font:bold,color:soft});const lw=wOf(l+':',8,bold);page.drawText(safe(wrap(v,half-lw-22,8.3)[0]),{x:ox+lw+6,y:ry,size:8.3,font,color:ink});ry-=mRow;});};
@@ -2676,7 +2684,7 @@ function saveGoogleMapsKey(){const input=document.getElementById('googleMapsKey'
 function renderQuotationTemplateCards(category='') { return QUOTE_LAYOUTS.filter(t=>!category||t.category===category).map(t=>`<button class="ql-template ${quotationLayout.templateId===t.id?'selected':''}" onclick="selectQuotationTemplate('${t.id}')" style="--tpl-accent:${t.accent};--tpl-tint:${t.tint};--tpl-font:${t.font}"><span class="ql-template-band"></span><strong>${esc(t.name)}</strong><small>${t.id} · ${t.style}</small></button>`).join(''); }
 function filterQuotationTemplates(category,button){ document.getElementById('qlTemplateGrid').innerHTML=renderQuotationTemplateCards(category); document.querySelectorAll('.ql-template-filters .btn').forEach(b=>b.classList.remove('btn-primary')); button.classList.add('btn-primary'); }
 function selectQuotationTemplate(id){ const preset=QUOTE_LAYOUTS.find(t=>t.id===id); if(!preset)return; Object.assign(quotationLayout,{templateId:id,accent:preset.accent,tint:preset.tint,font:preset.font,style:preset.style}); document.getElementById('qlAccent').value=preset.accent; document.getElementById('qlTint').value=preset.tint; document.getElementById('qlFont').value=preset.font; document.querySelectorAll('.ql-template').forEach(card=>card.classList.toggle('selected',card.textContent.includes(id))); previewQuotationLayout(); }
-function previewQuotationLayout(){ const header=document.getElementById('qlHeader'),preview=document.getElementById('qlPreview'); if(!header||!preview)return; quotationLayout.header=header.value; quotationLayout.subheader=document.getElementById('qlSubheader').value; quotationLayout.footer=document.getElementById('qlFooter').value; quotationLayout.logoUrl=document.getElementById('qlLogo').value.trim(); quotationLayout.font=document.getElementById('qlFont').value; quotationLayout.accent=document.getElementById('qlAccent').value; quotationLayout.tint=document.getElementById('qlTint').value; preview.innerHTML=`${quotationHeader()}<div class="ql-preview-body"><b>Quotation No. PTH/QTN/2026/0001</b><span>Client · Project · Test Category</span><div class="ql-preview-line"></div><div class="ql-preview-line short"></div></div>${quotationFooter()}`; }
+function previewQuotationLayout(){ const header=document.getElementById('qlHeader'),preview=document.getElementById('qlPreview'); if(!header||!preview)return; quotationLayout.header=header.value; quotationLayout.subheader=document.getElementById('qlSubheader').value; quotationLayout.footer=document.getElementById('qlFooter').value; quotationLayout.logoUrl=document.getElementById('qlLogo').value.trim(); quotationLayout.font=document.getElementById('qlFont').value; quotationLayout.accent=document.getElementById('qlAccent').value; quotationLayout.tint=document.getElementById('qlTint').value; preview.innerHTML=`${quotationHeader()}<div class="ql-preview-body"><b>Quotation No. ${esc(nextQuotationNumber())}</b><span>Client Name · Kind Attention · Test Category</span><div class="ql-preview-line"></div><div class="ql-preview-line short"></div></div>${quotationFooter()}`; }
 function uploadQuotationAsset(key,input){ const file=input.files?.[0]; if(!file)return; if(file.size>1500000){toast('Image too large','Use an image below 1.5 MB.','err');input.value='';return;} const reader=new FileReader(); reader.onload=()=>{quotationLayout[key]=reader.result;previewQuotationLayout();toast('Image uploaded','Preview updated. Save the layout to apply it.');}; reader.readAsDataURL(file); }
 function saveQuotationLayout(){ previewQuotationLayout(); localStorage.setItem(QUOTE_LAYOUT_KEY,JSON.stringify(quotationLayout)); toast('Quotation layout saved',`${QUOTE_LAYOUTS.find(t=>t.id===quotationLayout.templateId)?.name||'Custom layout'} applied to quotations`); logAudit('Edit','Settings',`Quotation layout ${quotationLayout.templateId} updated`); }
 
