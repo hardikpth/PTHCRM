@@ -31,14 +31,28 @@ const MIME = {
 };
 
 function safeJoin(base, target) {
-  const targetPath = path.normalize(path.join(base, target));
-  if (!targetPath.startsWith(base)) return null; // block path traversal
+  const targetPath = path.resolve(base, '.' + target);
+  const relative = path.relative(base, targetPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
   return targetPath;
 }
 
 const server = http.createServer((req, res) => {
   try {
-    let urlPath = decodeURIComponent(req.url.split('?')[0]);
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Method Not Allowed');
+      return;
+    }
+
+    let urlPath;
+    try {
+      urlPath = decodeURIComponent(req.url.split('?')[0]);
+    } catch (_) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Bad Request');
+      return;
+    }
     if (urlPath === '/') urlPath = '/index.html';
 
     let filePath = safeJoin(ROOT, urlPath);
@@ -48,7 +62,12 @@ const server = http.createServer((req, res) => {
 
     fs.stat(filePath, (err, stat) => {
       if (err || !stat.isFile()) {
-        // SPA fallback: unknown routes serve index.html
+        // Only extensionless browser routes get the SPA shell. Missing assets must be 404s.
+        if (path.extname(urlPath)) {
+          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end('Not Found');
+          return;
+        }
         filePath = path.join(ROOT, 'index.html');
       }
       const ext = path.extname(filePath).toLowerCase();
@@ -56,8 +75,24 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, {
         'Content-Type': type,
         'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'no-referrer',
+        // Defense-in-depth. Inline handlers/styles require 'unsafe-inline' for now;
+        // object-src/base-uri/frame-ancestors still limit injection blast radius.
+        'Content-Security-Policy': [
+          "default-src 'self'",
+          "script-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src https://fonts.gstatic.com",
+          "img-src 'self' data: blob:",
+          "connect-src 'self'",
+          "object-src 'none'",
+          "base-uri 'none'",
+          "frame-ancestors 'none'",
+        ].join('; '),
       });
-      fs.createReadStream(filePath).pipe(res);
+      if (req.method === 'HEAD') res.end();
+      else fs.createReadStream(filePath).pipe(res);
     });
   } catch (e) {
     res.writeHead(500); res.end('Server error');
@@ -77,7 +112,8 @@ server.listen(PORT, HOST, () => {
     const opener = process.platform === 'win32' ? `start "" "${url}"`
       : process.platform === 'darwin' ? `open "${url}"`
       : `xdg-open "${url}"`;
-    exec(opener, () => {});
+    const child = exec(opener, () => {});
+    child.on('error', () => {});
   }
 });
 

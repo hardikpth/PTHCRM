@@ -2,6 +2,9 @@
    LabCred CRM — Sample Laboratory Database
    ============================================================ */
 
+// Public preview credential only. Do not reuse this password for production authentication.
+const DEMO_PASSWORD = 'PTH-Demo!8vK4mQ27';
+
 const DB = {
   brand: {
     name: 'PTH CRM',
@@ -21,9 +24,9 @@ const DB = {
 
   user: { name: 'Hardik', role: 'Laboratory Head', initials: 'HK' },
 
-  // Login / managed users. The static build is preview-only; production auth is handled by the API.
+  // Login / managed users — static preview authentication only.
   users: [
-    { id: 'U-001', name: 'Hardik',  username: 'hardik',  email: 'hardik@pramukhtesthouse.com',  role: 'Laboratory Head',      branch: 'Surat (HO)', initials: 'HK', status: 'active', lastLogin: '2026-07-28 09:12' },
+    { id: 'U-001', name: 'Hardik',  username: 'hardik',  email: 'hardik@pramukhtesthouse.com', phone: '+91-9016329736', role: 'Laboratory Head',      branch: 'Surat (HO)', initials: 'HK', status: 'active', lastLogin: '2026-07-28 09:12' },
     { id: 'U-002', name: 'Tushal',  username: 'tushal',  email: 'tushal@pramukhtesthouse.com',  role: 'Quality Manager',      branch: 'Surat (HO)', initials: 'TU', status: 'active', lastLogin: '2026-07-28 08:47' },
     { id: 'U-003', name: 'Shivang', username: 'shivang', email: 'shivang@pramukhtesthouse.com', role: 'Technical Manager',    branch: 'Ahmedabad',  initials: 'SH', status: 'active', lastLogin: '2026-07-27 18:20' },
     { id: 'U-004', name: 'Jaydeep', username: 'jaydeep', email: 'jaydeep@pramukhtesthouse.com', role: 'CRM Manager',          branch: 'Surat (HO)', initials: 'JD', status: 'active', lastLogin: '2026-07-28 10:05' },
@@ -210,10 +213,7 @@ const DB = {
     { name: 'Jaydeep', role: 'CRM Manager', qual: 'MBA (Marketing)', cert: '—', expiry: '—', status: 'valid' },
   ],
 
-  // User-created saved quotations (persisted by the Store layer)
-  quotations: [],
-
-  roles: ['Super Admin','Director','Laboratory Head','Quality Manager','Technical Manager','CRM Manager','Sales Executive','Tender Executive','Document Controller','Accounts Manager','Testing Engineer','Reviewer','Authorised Signatory','Technician','Customer Portal User'],
+  roles: ['Super Admin','Director','Laboratory Head','Quality Manager','Technical Manager','CRM Manager','Sales Executive','Tender Executive','Document Controller','Accounts Manager','Testing Engineer','Reviewer','Authorised Signatory','Technician','Client Portal User'],
   perms: ['View','Create','Edit','Verify','Review','Approve','Issue','Download','Export','Delete','Archive','Share'],
 
   // Seed audit-trail entries (newest first). Live actions are appended on top and persisted to localStorage.

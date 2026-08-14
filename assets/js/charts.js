@@ -30,7 +30,12 @@ function areaChart(container, data, opts = {}) {
   const W = container.clientWidth || 720, H = opts.height || 300;
   const pad = { t: 18, r: 16, b: 30, l: 44 };
   const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', height: H, preserveAspectRatio: 'none' });
+  svg.setAttribute('class','modern-data-chart');
   container.appendChild(svg);
+
+  const fxId='chartGlow'+Math.random().toString(36).slice(2), fxDefs=el('defs'), fx=el('filter',{id:fxId,x:'-30%',y:'-30%',width:'160%',height:'160%'});
+  fx.appendChild(el('feGaussianBlur',{stdDeviation:3,result:'blur'}));
+  const merge=el('feMerge'); merge.appendChild(el('feMergeNode',{in:'blur'})); merge.appendChild(el('feMergeNode',{in:'SourceGraphic'})); fx.appendChild(merge); fxDefs.appendChild(fx); svg.appendChild(fxDefs);
 
   const allVals = data.series.flatMap(s => s.values);
   const max = Math.max(...allVals) * 1.12, min = 0;
@@ -42,7 +47,7 @@ function areaChart(container, data, opts = {}) {
   const gridN = 4;
   for (let g = 0; g <= gridN; g++) {
     const gy = pad.t + (g / gridN) * innerH;
-    svg.appendChild(el('line', { x1: pad.l, y1: gy, x2: W - pad.r, y2: gy, stroke: 'var(--border)', 'stroke-width': 1 }));
+    svg.appendChild(el('line', { x1: pad.l, y1: gy, x2: W - pad.r, y2: gy, stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray':'4 5', opacity:.82 }));
     const val = Math.round(max - (g / gridN) * max);
     const t = el('text', { x: pad.l - 8, y: gy + 4, 'text-anchor': 'end', fill: 'var(--text-muted)', 'font-size': 10.5 });
     t.textContent = val >= 1000 ? (val / 1000).toFixed(0) + 'k' : val;
@@ -50,6 +55,7 @@ function areaChart(container, data, opts = {}) {
   }
   // x labels
   data.labels.forEach((lb, i) => {
+    if(i<data.labels.length-1) svg.appendChild(el('line',{x1:x(i),y1:pad.t,x2:x(i),y2:pad.t+innerH,stroke:'var(--border)','stroke-width':.7,opacity:.28}));
     if (data.labels.length > 8 && i % 2 !== 0 && i !== data.labels.length - 1) return;
     const t = el('text', { x: x(i), y: H - 10, 'text-anchor': 'middle', fill: 'var(--text-muted)', 'font-size': 10.5 });
     t.textContent = lb;
@@ -66,14 +72,16 @@ function areaChart(container, data, opts = {}) {
       const gid = 'grad' + Math.random().toString(36).slice(2);
       const defs = el('defs');
       const lg = el('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
-      lg.appendChild(el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 0.28 }));
+      lg.appendChild(el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 0.42 }));
+      lg.appendChild(el('stop', { offset: '52%', 'stop-color': color, 'stop-opacity': 0.13 }));
       lg.appendChild(el('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': 0 }));
       defs.appendChild(lg); svg.appendChild(defs);
       const area = el('path', { d: `${linePath} L ${x(pts.length - 1)},${pad.t + innerH} L ${pad.l},${pad.t + innerH} Z`, fill: `url(#${gid})` });
       svg.appendChild(area);
     }
 
-    const line = el('path', { d: linePath, fill: 'none', stroke: color, 'stroke-width': si === 0 ? 2.6 : 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    const glow=el('path',{d:linePath,fill:'none',stroke:color,'stroke-width':si===0?7:5,opacity:.16,'stroke-linecap':'round',filter:`url(#${fxId})`});svg.appendChild(glow);
+    const line = el('path', { d: linePath, fill: 'none', stroke: color, 'stroke-width': si === 0 ? 3 : 2.35, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
     svg.appendChild(line);
     if (!reduceMotion()) {
       const len = line.getTotalLength();
@@ -82,11 +90,14 @@ function areaChart(container, data, opts = {}) {
       line.style.transition = `stroke-dashoffset ${900 + si * 120}ms cubic-bezier(0.22,0.61,0.36,1)`;
       requestAnimationFrame(() => { line.style.strokeDashoffset = 0; });
     }
-    // dots on first series
-    if (si === 0) pts.forEach((p, i) => {
-      const dot = el('circle', { cx: p[0], cy: p[1], r: 3, fill: 'var(--surface)', stroke: color, 'stroke-width': 2, opacity: 0 });
+    // luminous data points
+    pts.forEach((p, i) => {
+      const halo=el('circle',{cx:p[0],cy:p[1],r:7,fill:color,opacity:0});svg.appendChild(halo);
+      const dot = el('circle', { cx: p[0], cy: p[1], r: si===0?3.6:2.8, fill: 'var(--surface)', stroke: color, 'stroke-width': 2.2, opacity: 0 });
       svg.appendChild(dot);
       setTimeout(() => { dot.style.transition = 'opacity 200ms'; dot.setAttribute('opacity', 0.9); }, reduceMotion() ? 0 : 900);
+      dot.addEventListener('mouseenter',()=>{halo.setAttribute('opacity',.16);dot.setAttribute('r',si===0?5:4)});
+      dot.addEventListener('mouseleave',()=>{halo.setAttribute('opacity',0);dot.setAttribute('r',si===0?3.6:2.8)});
     });
   });
 
@@ -128,22 +139,27 @@ function donutChart(container, segments, opts = {}) {
   const C = 2 * Math.PI * r;
   const total = segments.reduce((a, s) => a + s.value, 0);
   const svg = el('svg', { viewBox: `0 0 ${size} ${size}`, width: size, height: size });
+  svg.setAttribute('class','modern-donut-chart');
   svg.style.transform = 'rotate(-90deg)';
   container.appendChild(svg);
-  svg.appendChild(el('circle', { cx, cy, r, fill: 'none', stroke: 'var(--surface-soft)', 'stroke-width': sw }));
+  svg.appendChild(el('circle', { cx, cy, r, fill: 'none', stroke: 'var(--surface-soft)', 'stroke-width': sw+3 }));
+  svg.appendChild(el('circle', { cx, cy, r:r-sw/2-5, fill: 'none', stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray':'2 5', opacity:.7 }));
 
   let offset = 0;
   segments.forEach((s, i) => {
     const frac = s.value / total;
     const arc = el('circle', {
       cx, cy, r, fill: 'none', stroke: s.color, 'stroke-width': sw,
-      'stroke-dasharray': `${frac * C} ${C}`, 'stroke-dashoffset': -offset, 'stroke-linecap': 'butt',
+      'stroke-dasharray': `${Math.max(0,frac * C-3)} ${C}`, 'stroke-dashoffset': -offset, 'stroke-linecap': 'round',
     });
     if (!reduceMotion()) {
       arc.style.strokeDasharray = `0 ${C}`;
-      setTimeout(() => { arc.style.transition = 'stroke-dasharray 800ms cubic-bezier(0.22,0.61,0.36,1)'; arc.style.strokeDasharray = `${frac * C} ${C}`; }, 100 + i * 90);
+      setTimeout(() => { arc.style.transition = 'stroke-dasharray 800ms cubic-bezier(0.22,0.61,0.36,1)'; arc.style.strokeDasharray = `${Math.max(0,frac * C-3)} ${C}`; }, 100 + i * 90);
     }
     svg.appendChild(arc);
+    arc.style.transition='stroke-width 220ms ease,opacity 220ms ease,filter 220ms ease';
+    arc.addEventListener('mouseenter',()=>{arc.setAttribute('stroke-width',sw+5);arc.style.filter='drop-shadow(0 0 5px '+s.color+')'});
+    arc.addEventListener('mouseleave',()=>{arc.setAttribute('stroke-width',sw);arc.style.filter='none'});
     offset += frac * C;
   });
 

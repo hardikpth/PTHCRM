@@ -5,35 +5,33 @@ branded for **Pramukh Test House** (PTH Consultancy Services LLP), Surat — acc
 and NABL ISO/IEC 17025:2017. Built for material-testing, geotechnical, NDT and calibration workflows
 with government departments, PSUs and infrastructure clients.
 
-Repository: **https://github.com/hardikpth/PTHCRM**
-
 > **Brand, logo & tagline are configurable** (Settings → Branding, or `DB.brand` in `assets/js/data.js`).
 
-## Architecture — code and data are separate ⭐
-Your **data** is kept apart from the **application code**, so updating features never erases records.
-
-- **Code** (features / UI / logic): `index.html`, `assets/css/*`, `assets/js/{data.js, sor.js, charts.js, app.js}`. Replaced on every deploy.
-- **Data** (users, CRM leads, credentials, equipment, staff, tenders, quotations, notifications, audit trail): held by `assets/js/store.js` in the browser's **localStorage** under one key (`pth_crm_data`).
-
-How it behaves:
-- **First run** seeds data from the code defaults. After that, your edits live in the Store.
-- **Deploying new code** (or a plain reload) does **not** touch your data.
-- A new collection introduced by a future version is **merged in** without overwriting what you already have (schema migration).
-- **Settings → Data Management** gives you **Back up (download JSON)**, **Restore from backup**, and **Reset to defaults** — plus live record counts.
-
-> Scope note: localStorage is **per-browser / per-device**. For shared, multi-user, multi-device data you need the backend (see *Going online / production* below). The Store layer is designed so swapping localStorage for a REST API later is a contained change (one file).
-
 ## Login users
-The static site provides role-based preview access and does not contain credentials. The Django
-backend requires `DEMO_USER_PASSWORD` and `DJANGO_SUPERUSER_PASSWORD` deployment secrets. Set both
-outside source control before running `seed_demo`.
+Five users are available for static preview access. The shared preview password is
+**`PTH-Demo!8vK4mQ27`** and must never be reused for production authentication.
+
+| User | Password | Role |
+|---|---|---|
+| Hardik | `PTH-Demo!8vK4mQ27` | Laboratory Head |
+| Tushal | `PTH-Demo!8vK4mQ27` | Quality Manager |
+| Shivang | `PTH-Demo!8vK4mQ27` | Technical Manager |
+| Jaydeep | `PTH-Demo!8vK4mQ27` | CRM Manager |
+| Nirav | `PTH-Demo!8vK4mQ27` | Authorised Signatory |
+
+Pick the user on the login screen; the preview password auto-fills.
 
 ## Schedule of Rates (SOR)
 The full **PTH SOR FY 2026–27** — **310 tests across 34 categories** — was imported from
 `PTH_SOR_2026-27_Final_Complete.docx` into `assets/js/sor.js`.
 
 - **Schedule of Rates** page (sidebar → CRM): browse/search every test by name or IS code; one-click "add to quotation".
-- **Quotations** page: pick a category → test; the **rate auto-fills from the SOR**, quantity × rate rolls up to subtotal, 18% GST and total. "Rate on Demand" items are carried as *On request*.
+- **Quotations** page: pick a category → test; the **rate auto-fills from the SOR**, quantity × rate rolls up to the GST-exclusive subtotal, then 18% GST is added separately. "Rate on Demand" items are carried as *On request*.
+- Quotation lines include their **test category**. SOR combo packages print every included test parameter in brackets; out-of-SOR custom services, optional percentage discounts and editable category-specific terms templates are supported.
+- **Excel/CSV bulk import** is available for Enquiries, Quotations, Schedule of Rates, Customers and Tenders. Each screen provides a downloadable CSV template; `.xlsx`, `.xls`, `.ods` and `.csv` files are supported.
+- **Named PDF bulk import** is available for Credentials, Approvals, Certifications and Accreditation Scope. Each PDF filename becomes the particular record name.
+
+> **Tax basis:** All prices listed in the FY 2026–27 SOR exclude GST. Applicable GST is added extra at quotation/invoice time, as stated in the approved Word SOR.
 
 To re-import an updated SOR later, replace the `.docx` and regenerate `assets/js/sor.js` (see `sor.js` header).
 
@@ -103,7 +101,7 @@ No server needed for a quick look — double-click **`index.html`**.
 | **Credentials** | Stat strip, filter bar, sortable table, bulk-select, **detail drawer** (Overview / Document / Renewal History / Checklist / Audit Trail), Add-Credential modal w/ validation |
 | **Approvals** | Workflow board with animated 13-stage progression, records table |
 | **Certifications** | Org + customer certificates, 7-step workflow visualiser |
-| **Accreditation Scope / Equipment / Staff** | Scope cards, calibration table, staff credential cards |
+| **Accreditation Scope** | Scope cards and named-PDF bulk import |
 | **Tenders** | Opportunity cards → Package Builder |
 | **Package Builder** | 3-panel builder, drag-to-reorder, live missing/expiring summary |
 | **Expiry Calendar** | Grouped timeline (7/30/60/90 days) + month calendar |
@@ -122,40 +120,20 @@ bottom nav + FAB on mobile.
 ## File structure
 
 ```
-PTHCRM/
+labcred/
 ├── index.html                 # entry point (cache-busted asset links)
 ├── server.js                  # zero-dependency Node static server
 ├── package.json               # npm start → node server.js
 ├── Start-LabCred.bat          # Windows one-click launcher
 ├── README.md
-├── MODULE-AUDIT.md            # module-by-module status audit
 └── assets/
-    ├── img/logo.jpeg          # authentic PTH seal
     ├── css/styles.css         # design tokens + full component library + responsive + dark theme
     └── js/
-        ├── data.js            # DEFAULTS: sample laboratory database + seed data
-        ├── sor.js             # Schedule of Rates (310 tests) imported from the SOR docx
-        ├── store.js           # DATA layer — persists user data to localStorage (code/data separation)
+        ├── data.js            # sample laboratory database (credentials, leads, approvals, ...)
         ├── charts.js          # dependency-free SVG charts: area, donut, gauge, sparkline, counters
-        └── app.js             # icon set, router, all views, audit trail, drawers/modals/intro
+        ├── imports.js         # Excel/CSV and named-PDF bulk import workflows
+        └── app.js             # icon set, router, all views, drawers/modals/toasts, cinematic intro
 ```
-
----
-
-## Going online / production
-
-**Demo / review link (minutes, free):** it's a static site.
-- **GitHub Pages:** push, then repo → Settings → Pages → Source `main` / root → your URL is `https://hardikpth.github.io/PTHCRM/`.
-- **Netlify / Cloudflare Pages / Vercel:** connect the repo or drag-drop the folder; add a custom domain (e.g. `crm.pramukhtesthouse.com`) with automatic HTTPS.
-
-**Real multi-user production:** a full backend now ships in **[`backend/`](backend/README.md)** — Django + DRF + JWT + PostgreSQL, with models mirroring the Store collections, role-based permissions, an append-only audit trail, the Schedule of Rates as reference data, and one-click deploy configs for **Render** ([`render.yaml`](render.yaml)) and **Railway** (`backend/Procfile`).
-
-To connect the front-end to it once deployed:
-1. Deploy the backend (see `backend/README.md`) → you get an API base like `https://pthcrm-api.onrender.com/api`.
-2. In `index.html`, uncomment and set `window.PTH_API_BASE` to that URL.
-3. `assets/js/api.js` (already included) then handles JWT login + CRUD. Wiring the Store's load/save to `Api` is the final integration step — a contained change in `store.js`, because the rest of the app already reads/writes through the `Store` interface.
-
-Two-part hosting: **front-end** on GitHub Pages/Netlify (static), **backend** on Render/Railway (API + database). Point them at each other via `PTH_API_BASE` (front-end) and `CORS_ALLOWED_ORIGINS` (back-end).
 
 ---
 

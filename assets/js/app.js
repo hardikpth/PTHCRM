@@ -1,1077 +1,360 @@
-/* ============================================================
-   LabCred CRM — Application Shell, Router & Views
-   ============================================================ */
-
-/* ---------- Icon library (inline SVG, stroke-based) ---------- */
-const I = {
-  logo: '<svg viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="46" fill="#fff" stroke="var(--brand-navy)" stroke-width="2.4"/><circle cx="50" cy="50" r="40.5" fill="none" stroke="var(--brand-navy)" stroke-width="1.1"/><path d="M41 84 C34 62 36 33 51 23 C68 14 80 34 63 46 C54.5 52 44 49.5 44.5 43" fill="none" stroke="#E8791E" stroke-width="9.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M41 84 C38 78 37 70 37 62" fill="none" stroke="#E8791E" stroke-width="9.5" stroke-linecap="round"/><circle cx="37.5" cy="70" r="8.6" fill="#E4002B"/><text x="37.5" y="73.2" text-anchor="middle" font-size="7.4" font-weight="700" fill="#fff" font-family="Inter,sans-serif">PTH</text></svg>',
-  overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
-  crm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.5a3 3 0 0 1 0 5.8M18 19a5 5 0 0 0-3-4.6"/></svg>',
-  enquiry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4L3 21l1.1-3.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 10h6M9 13.5h4"/></svg>',
-  quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
-  customer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><circle cx="9" cy="8" r="3"/><path d="M16 3.5a3 3 0 0 1 0 5.8M21 21v-1a4 4 0 0 0-3-3.8"/></svg>',
-  project: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg>',
-  job: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6V4h8v2M3 12h18"/></svg>',
-  sample: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 2h6M10 2v6l-4.5 9a2 2 0 0 0 1.8 3h9.4a2 2 0 0 0 1.8-3L14 8V2"/><path d="M7.5 15h9"/></svg>',
-  test: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3h14M6 3v6l5 6-5 6h12l-5-6 5-6V3"/></svg>',
-  report: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 12l2.5 2.5L16 9"/></svg>',
-  cred: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="12" r="2.2"/><path d="M13 10h5M13 13.5h4"/></svg>',
-  approval: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l7 3v6c0 4.6-3 8.4-7 10-4-1.6-7-5.4-7-10V5l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
-  cert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="9" r="6"/><path d="M9 14l-1.5 7L12 19l4.5 2L15 14"/></svg>',
-  scope: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
-  tender: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 21V5a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 3v6h6M9 14h6M9 17h4"/></svg>',
-  equip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.3 4.3a3.5 3.5 0 0 0 4.9 4.9l4.3 4.3a2 2 0 0 1-2.8 2.8l-4.3-4.3a3.5 3.5 0 0 0-4.9-4.9z"/><path d="M6 14l-3 3a2 2 0 0 0 2.8 2.8l3-3"/></svg>',
-  employee: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="7" r="4"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/></svg>',
-  document: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2h8l6 6v14H6z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>',
-  invoice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>',
-  payment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
-  analytics: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
-  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/></svg>',
-  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 7 2.6h.1A1.6 1.6 0 0 0 9 1V.9a2 2 0 0 1 4 0V1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.1a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" transform="translate(1 1)"/></svg>',
-  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
-  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/></svg>',
-  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>',
-  chevL: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 6l-6 6 6 6"/></svg>',
-  chevR: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 6l6 6-6 6"/></svg>',
-  chevD: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6"/></svg>',
-  arrowR: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
-  up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
-  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
-  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
-  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg>',
-  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>',
-  filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>',
-  export: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v12M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
-  upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>',
-  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
-  more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
-  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
-  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>',
-  inr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 4h12M6 8h12M15.5 4c0 4-3 6-7 6h1l6 8"/></svg>',
-  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 2h8l6 6v14H6z"/><path d="M14 2v6h6"/></svg>',
-  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
-  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/></svg>',
-  building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></svg>',
-  menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M3 12h18M3 18h18"/></svg>',
-  portal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 21h8"/></svg>',
-  rate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4z"/><path d="M8 9h4M8 13h8M8 17h6"/><circle cx="16" cy="9" r="1.4"/></svg>',
-};
-
-/* ---------- Brand logo: real PTH artwork if provided, else built-in SVG mark ---------- */
-function brandMark() {
-  window.__logoSVG = I.logo;
-  return DB.brand.logoUrl
-    ? `<img src="${DB.brand.logoUrl}" alt="${DB.brand.company} logo" style="width:100%;height:100%;object-fit:contain" onerror="this.parentElement.innerHTML=window.__logoSVG">`
-    : I.logo;
-}
-
-/* ---------- Formatting ---------- */
-window.fmt = function (v, kind) {
-  if (kind === 'inr') {
-    const n = Math.round(v);
-    if (n >= 10000000) return '₹' + (n / 10000000).toFixed(2) + ' Cr';
-    if (n >= 100000) return '₹' + (n / 100000).toFixed(2) + ' L';
-    return '₹' + n.toLocaleString('en-IN');
-  }
-  if (kind === 'pct') return v.toFixed(1) + '%';
-  if (kind === 'int') return Math.round(v).toLocaleString('en-IN');
-  return v;
-};
-const inr = v => window.fmt(v, 'inr');
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
-/* ---------- Navigation config ---------- */
-const NAV = [
-  { section: 'Main', items: [
-    { id: 'overview', label: 'Overview', icon: 'overview' },
-  ]},
-  { section: 'CRM', items: [
-    { id: 'pipeline', label: 'CRM Pipeline', icon: 'crm' },
-    { id: 'enquiries', label: 'Enquiries', icon: 'enquiry', badge: 12 },
-    { id: 'quotations', label: 'Quotations', icon: 'quote' },
-    { id: 'sor', label: 'Schedule of Rates', icon: 'rate' },
-    { id: 'customers', label: 'Customers', icon: 'customer' },
-    { id: 'tenders', label: 'Tenders', icon: 'tender' },
-  ]},
-  { section: 'Compliance', items: [
-    { id: 'credentials', label: 'Credentials', icon: 'cred', dot: true },
-    { id: 'approvals', label: 'Approvals', icon: 'approval' },
-    { id: 'certifications', label: 'Certifications', icon: 'cert' },
-    { id: 'scope', label: 'Accreditation Scope', icon: 'scope' },
-    { id: 'equipment', label: 'Equipment', icon: 'equip' },
-    { id: 'staff', label: 'Staff Credentials', icon: 'employee' },
-    { id: 'package', label: 'Package Builder', icon: 'document' },
-    { id: 'calendar', label: 'Expiry Calendar', icon: 'cal' },
-  ]},
-  { section: 'Operations', items: [
-    { id: 'analytics', label: 'Analytics', icon: 'analytics' },
-    { id: 'notifications', label: 'Alerts', icon: 'alert', badge: 3 },
-    { id: 'portal', label: 'Customer Portal', icon: 'portal' },
-    { id: 'users', label: 'User Management', icon: 'employee' },
-    { id: 'audit', label: 'Audit Trail', icon: 'shield' },
-    { id: 'settings', label: 'Settings', icon: 'settings' },
-  ]},
-];
-
-/* ---------- App State ---------- */
-const state = { route: 'overview', collapsed: false, theme: 'light', mobileOpen: false, period: 'Last 30 days' };
-
-/* ---------- Audit Trail (data lives in the Store / localStorage) ---------- */
-// window.auditLog is created and bound by store.js (Store.init()).
-if (!window.auditLog) window.auditLog = [];
-function nowStamp() {
-  const d = new Date(), p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-function logAudit(action, module, detail) {
-  window.auditLog.unshift({ ts: nowStamp(), user: DB.user.name, role: DB.user.role, action, module, detail });
-  if (window.auditLog.length > 800) window.auditLog.length = 800;
-  Store.save();
-  if (state.route === 'audit') renderAuditTable(document.getElementById('auditSearch')?.value || '');
-}
-
-/* ============================================================
-   UTILITIES: toast, drawer, modal
-   ============================================================ */
-function toast(msg, sub = '', kind = 'ok') {
-  let wrap = document.querySelector('.toast-wrap');
-  if (!wrap) { wrap = document.createElement('div'); wrap.className = 'toast-wrap'; document.body.appendChild(wrap); }
-  const icoMap = {
-    ok: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path class="check-anim" d="M20 6L9 17l-5-5"/></svg>`,
-    err: I.x, info: I.info,
-  };
-  const t = document.createElement('div');
-  t.className = 'toast';
-  t.innerHTML = `<div class="toast-ico ${kind}">${icoMap[kind]}</div><div><div class="toast-msg">${esc(msg)}</div>${sub ? `<div class="toast-sub">${esc(sub)}</div>` : ''}</div>`;
-  wrap.appendChild(t);
-  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 3400);
-}
-
-function openDrawer(html) {
-  let scrim = document.querySelector('.scrim'), drawer = document.querySelector('.drawer');
-  if (!scrim) { scrim = document.createElement('div'); scrim.className = 'scrim'; document.body.appendChild(scrim); scrim.onclick = closeDrawer; }
-  if (!drawer) { drawer = document.createElement('div'); drawer.className = 'drawer'; document.body.appendChild(drawer); }
-  drawer.innerHTML = html;
-  requestAnimationFrame(() => { scrim.classList.add('open'); drawer.classList.add('open'); });
-  drawer.querySelectorAll('.drawer-tab').forEach(tab => {
-    tab.onclick = () => {
-      drawer.querySelectorAll('.drawer-tab').forEach(t => t.classList.remove('active'));
-      drawer.querySelectorAll('.drawer-pane').forEach(p => p.style.display = 'none');
-      tab.classList.add('active');
-      const pane = drawer.querySelector('#pane-' + tab.dataset.tab);
-      if (pane) pane.style.display = 'block';
-    };
-  });
-}
-function closeDrawer() {
-  document.querySelector('.scrim')?.classList.remove('open');
-  document.querySelector('.drawer')?.classList.remove('open');
-}
-
-function openModal(html) {
-  let scrim = document.querySelector('.modal-scrim');
-  if (!scrim) { scrim = document.createElement('div'); scrim.className = 'modal-scrim'; document.body.appendChild(scrim); scrim.onclick = e => { if (e.target === scrim) closeModal(); }; }
-  scrim.innerHTML = `<div class="modal">${html}</div>`;
-  requestAnimationFrame(() => scrim.classList.add('open'));
-}
-function closeModal() { document.querySelector('.modal-scrim')?.classList.remove('open'); }
-
-/* ============================================================
-   SHELL
-   ============================================================ */
-function renderShell() {
-  const app = document.getElementById('app');
-  const navHtml = NAV.map(sec => `
-    <div class="nav-section-label">${sec.section}</div>
-    ${sec.items.map(it => `
-      <a class="nav-item ${state.route === it.id ? 'active' : ''}" data-route="${it.id}" tabindex="0" title="${it.label}">
-        ${I[it.icon]}
-        <span class="nav-label">${it.label}</span>
-        ${it.dot && state.route !== it.id ? '<span class="nav-dot"></span>' : ''}
-        ${it.badge ? `<span class="nav-badge">${it.badge}</span>` : ''}
-      </a>`).join('')}
-  `).join('');
-
-  app.innerHTML = `
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-logo">${brandMark()}</div>
-        <div class="brand-text">
-          <span class="brand-name" id="brandName">${DB.brand.name}</span>
-          <span class="brand-sub">${DB.brand.company}</span>
-        </div>
-        <button class="collapse-btn" id="collapseBtn" aria-label="Collapse sidebar">${I.chevL}</button>
-      </div>
-      <div class="side-search"><span>${I.search}</span><input placeholder="Search..." aria-label="Search" id="globalSearch"><kbd>⌘K</kbd></div>
-      <nav class="nav">${navHtml}</nav>
-    </aside>
-    <div class="main">
-      <header class="topbar">
-        <button class="icon-btn mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">${I.menu}</button>
-        <div>
-          <div class="topbar-title" id="topbarTitle">Overview</div>
-        </div>
-        <div class="topbar-spacer"></div>
-        <button class="pill-select hide-mobile" id="branchSel">${I.building}<span class="dim">Branch</span> <b>Surat (HO)</b> ${I.chevD}</button>
-        <button class="pill-select hide-mobile" id="fySel">${I.cal}<b>${DB.financialYear}</b> ${I.chevD}</button>
-        <button class="icon-btn" id="topSearch" aria-label="Search">${I.search}</button>
-        <button class="icon-btn" id="quickAdd" aria-label="Quick add">${I.plus}</button>
-        <button class="icon-btn" id="notifBtn" aria-label="Notifications">${I.bell}<span class="ping"></span></button>
-        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">${I.shield}</button>
-        <div class="avatar" id="avatarBtn" title="${DB.user.name} — ${DB.user.role}">${DB.user.initials}</div>
-      </header>
-      <main class="canvas" id="canvas"></main>
-    </div>
-    <nav class="mobile-nav">
-      ${['overview','pipeline','credentials','calendar','notifications'].map(id => {
-        const it = NAV.flatMap(s => s.items).find(x => x.id === id);
-        return `<a data-route="${id}" class="${state.route === id ? 'active' : ''}">${I[it.icon]}<span>${it.label.split(' ')[0]}</span></a>`;
-      }).join('')}
-    </nav>
-    <button class="fab" id="fabBtn" aria-label="New enquiry">${I.plus}</button>
-  `;
-
-  // wire events
-  app.querySelectorAll('[data-route]').forEach(a => a.onclick = () => { navigate(a.dataset.route); state.mobileOpen = false; app.classList.remove('mobile-open'); });
-  document.getElementById('collapseBtn').onclick = () => { state.collapsed = !state.collapsed; app.classList.toggle('collapsed', state.collapsed); };
-  document.getElementById('mobileMenuBtn').onclick = () => { state.mobileOpen = !state.mobileOpen; app.classList.toggle('mobile-open', state.mobileOpen); };
-  document.getElementById('notifBtn').onclick = () => navigate('notifications');
-  document.getElementById('quickAdd').onclick = () => quickAddMenu();
-  document.getElementById('fabBtn').onclick = () => openEnquiryModal();
-  document.getElementById('themeBtn').onclick = toggleTheme;
-  document.getElementById('topSearch').onclick = () => document.getElementById('globalSearch')?.focus();
-  document.getElementById('avatarBtn').onclick = () => navigate('settings');
-  document.getElementById('globalSearch').addEventListener('keydown', e => { if (e.key === 'Enter') toast('Search', `Searching for "${e.target.value}" across all modules`, 'info'); });
-}
-
-function toggleTheme() {
-  state.theme = state.theme === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', state.theme);
-  toast(state.theme === 'dark' ? 'Dark theme enabled' : 'Light theme enabled', '', 'info');
-  if (VIEWS[state.route]) VIEWS[state.route](document.getElementById('canvas'));
-}
-
-function quickAddMenu() {
-  openModal(`
-    <div class="modal-head"><div class="modal-title">Quick Add</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
-    <div class="modal-body">
-      <div class="grid" style="grid-template-columns:1fr 1fr">
-        ${[['New Enquiry','enquiry'],['Add Credential','cred'],['New Quotation','quote'],['Add Customer','customer'],['New Tender','tender'],['Upload Document','document']].map(([t,ic]) =>
-          `<button class="btn btn-ghost" style="justify-content:flex-start;padding:14px" onclick="closeModal();${ic==='cred'?'openCredentialModal()':ic==='enquiry'?'openEnquiryModal()':`toast('${t}','Form opened','info')`}">${I[ic]}${t}</button>`).join('')}
-      </div>
-    </div>`);
-}
-
-function navigate(route) {
-  state.route = route;
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.route === route));
-  document.querySelectorAll('.nav-item .nav-dot').forEach(d => d.remove());
-  document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.toggle('active', a.dataset.route === route));
-  const title = NAV.flatMap(s => s.items).find(i => i.id === route)?.label || 'Overview';
-  const tt = document.getElementById('topbarTitle'); if (tt) tt.textContent = title;
-  const canvas = document.getElementById('canvas');
-  canvas.scrollTop = 0;
-  (VIEWS[route] || VIEWS.overview)(canvas);
-  window.scrollTo(0, 0);
-}
-
-/* helper builders */
-function pageHead(title, desc, actions = '') {
-  return `<div class="page-head">
-    <div class="page-head-l">
-      <div class="topbar-breadcrumb">Home ${I.chevR} <span style="color:var(--text-secondary)">${title}</span></div>
-      <div class="page-title">${title}</div>
-      ${desc ? `<div class="page-desc">${desc}</div>` : ''}
-    </div>
-    <div class="page-head-r">${actions}</div>
-  </div>`;
-}
-function statusBadge(status) {
-  const map = {
-    valid: ['badge-valid','Valid'], expiring: ['badge-expiring','Expiring Soon'], expired: ['badge-expired','Expired'],
-    renewal: ['badge-renewal','Renewal Initiated'], submitted: ['badge-submitted','Submitted'], review: ['badge-review','Under Review'],
-    observation: ['badge-observation','Observation Raised'], approved: ['badge-approved','Approved'], suspended: ['badge-suspended','Suspended'],
-    won: ['badge-won','Won'], lost: ['badge-lost','Lost'], overdue: ['badge-overdue','Overdue'],
-  };
-  const [cls, label] = map[status] || ['badge-neutral', status];
-  return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
-}
-function dotForDays(d) {
-  if (d < 7) return 'var(--danger)'; if (d < 30) return '#F57C1F'; if (d < 60) return 'var(--warning)'; return 'var(--primary-dark)';
-}
-
-/* ============================================================
-   VIEWS
-   ============================================================ */
-const VIEWS = {};
-
-/* ---------- OVERVIEW ---------- */
-const KPI_ROUTE = { enq: 'enquiries', quo: 'quotations', ord: 'pipeline', cnv: 'analytics', due: 'analytics' };
-const PERIOD_FACTOR = { 'Last 7 days': 0.25, 'Last 30 days': 1, 'This quarter': 3, 'This FY': 12 };
-VIEWS.overview = function (c) {
-  const actions = `
-    <label class="pill-select hide-sm" style="cursor:pointer">${I.cal}<select id="ovPeriod" onchange="setOverviewPeriod(this.value)" style="border:none;background:transparent;font-weight:600;font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;outline:none">${Object.keys(PERIOD_FACTOR).map(p => `<option ${p === state.period ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
-    <button class="btn btn-ghost hide-sm" onclick="exportOverview()">${I.export}Export</button>
-    <button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Enquiry ${I.arrowR}</button>`;
-
-  const factor = PERIOD_FACTOR[state.period] || 1;
-  const kpiCards = DB.kpis.map((k, i) => {
-    const v = k.id === 'cnv' ? k.value : Math.round(k.value * factor);
-    return `
-    <div class="card card-pad kpi hoverlift enter enter-${i + 1}" data-kpi="${k.id}" style="cursor:pointer">
-      <div class="kpi-top"><span class="kpi-label">${k.label}</span><span class="kpi-ico" title="${k.cmp}">${I.info}</span></div>
-      <div class="kpi-val tnum counter" data-base="${k.value}" data-kid="${k.id}" data-target="${v}" data-format="${k.fmt}">0</div>
-      <div class="kpi-foot">
-        <span class="delta ${k.dir}">${k.dir === 'up' ? I.up : I.down}${k.delta}%</span>
-        <span class="kpi-cmp">${k.cmp}</span>
-      </div>
-      <a class="kpi-link" data-route="${KPI_ROUTE[k.id]}" onclick="event.stopPropagation();navigate('${KPI_ROUTE[k.id]}')">View Details ${I.arrowR}</a>
-      <div class="kpi-spark" data-spark='${JSON.stringify(k.spark)}' data-dir="${k.dir}"></div>
-    </div>`;
-  }).join('');
-
-  c.innerHTML = `
-    ${pageHead('Overview', 'Laboratory performance, compliance health and credential status at a glance.', actions)}
-    <div class="grid dash-grid">
-      <div class="col-12"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px" class="kpi-carousel" id="kpiRow">${kpiCards}</div></div>
-
-      <div class="col-8">
-        <div class="card card-pad enter enter-2" style="height:100%">
-          <div class="card-head">
-            <div><h3>Enquiry & Revenue Analytics</h3><div class="card-sub">Monthly trend across the CRM funnel</div></div>
-            <div class="card-head-r">
-              <div class="seg" id="chartSeg">
-                <button class="on" data-s="Enquiries received">Enquiries</button>
-                <button data-s="Quotation submitted">Quotations</button>
-                <button data-s="Orders received">Orders</button>
-                <button data-s="Revenue booked">Revenue</button>
-              </div>
-              <button class="fdrop">${I.filter}Filter</button>
-            </div>
-          </div>
-          <div id="mainChart" style="margin-top:12px"></div>
-        </div>
-      </div>
-
-      <div class="col-4">
-        <div class="card card-pad enter enter-3" style="height:100%">
-          <div class="card-head"><h3>Compliance Health</h3><span class="badge badge-valid" style="margin-left:auto"><span class="dot"></span>Good</span></div>
-          <div id="gauge" style="margin-top:6px"></div>
-          <div class="legend" style="margin-top:14px">
-            <div class="legend-row"><span class="lg-dot" style="background:var(--primary)"></span><span class="lg-name">Valid credentials</span><span class="lg-val">${DB.compliance.valid}</span></div>
-            <div class="legend-row"><span class="lg-dot" style="background:var(--warning)"></span><span class="lg-name">Expiring soon</span><span class="lg-val">${DB.compliance.expiring}</span></div>
-            <div class="legend-row"><span class="lg-dot" style="background:var(--danger)"></span><span class="lg-name">Expired</span><span class="lg-val">${DB.compliance.expired}</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-4">
-        <div class="card card-pad enter" style="height:100%">
-          <div class="card-head"><div><h3>Credential Status</h3><div class="card-sub">By category</div></div></div>
-          <div style="display:flex;gap:16px;align-items:center;margin-top:8px;flex-wrap:wrap">
-            <div id="donut"></div>
-            <div class="legend" style="flex:1;min-width:150px">
-              ${DB.credentialStatus.map(s => `<div class="legend-row"><span class="lg-dot" style="background:${s.color}"></span><span class="lg-name">${s.name}</span><span class="lg-val">${s.value}</span></div>`).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-4">
-        <div class="card card-pad enter" style="height:100%">
-          <div class="card-head"><h3>Approvals & Certifications</h3><a class="kpi-link" onclick="navigate('approvals')">All ${I.arrowR}</a></div>
-          <div style="margin-top:4px">
-            ${DB.approvals.slice(0, 5).map(a => `
-              <div class="appr-item">
-                <div class="appr-main"><div class="appr-name">${a.name}</div><div class="appr-auth">${a.auth} · ${a.cert}</div></div>
-                <div class="appr-prog"><div class="prog-track"><span style="width:0" data-w="${a.prog}"></span></div><div class="prog-label">Expiry ${a.expiry}</div></div>
-                ${statusBadge(a.status)}
-              </div>`).join('')}
-          </div>
-        </div>
-      </div>
-
-      <div class="col-4">
-        <div class="card card-pad enter" style="height:100%">
-          <div class="card-head"><h3>Upcoming Expiries</h3><a class="kpi-link" onclick="navigate('calendar')">Calendar ${I.arrowR}</a></div>
-          <div class="timeline" style="margin-top:4px">
-            ${renderExpiryTimeline(DB.expiries.slice(0, 6))}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // charts
-  requestAnimationFrame(() => {
-    animateCounters(c);
-    drawMainChart('Enquiries received');
-    gaugeChart(document.getElementById('gauge'), DB.compliance.score, [
-      { value: DB.compliance.valid, color: 'var(--primary)' },
-      { value: DB.compliance.expiring, color: 'var(--warning)' },
-      { value: DB.compliance.expired, color: 'var(--danger)' },
-    ]);
-    animateCounters(document.getElementById('gauge'));
-    donutChart(document.getElementById('donut'), DB.credentialStatus.map(s => ({ value: s.value, color: s.color })), { size: 150, stroke: 22, center: DB.credentialStatus.reduce((a, s) => a + s.value, 0), centerSub: 'Total' });
-    c.querySelectorAll('.kpi-spark').forEach(el => {
-      const vals = JSON.parse(el.dataset.spark);
-      sparkline(el, vals, el.dataset.dir === 'up' ? 'var(--primary)' : 'var(--danger)');
-    });
-    setTimeout(() => c.querySelectorAll('.prog-track span').forEach(s => s.style.width = s.dataset.w + '%'), 200);
+q=savedQuotations.find(item=>item.number===number); if(!q)return; openModal(`<div class="modal-head"><div class="modal-title">Delete Quotation</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(number)}</b> for ${esc(q.customer)}? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteQuotation('${esc(number)}')">Delete</button></div>`); }
+function confirmDeleteQuotation(number){ const index=savedQuotations.findIndex(q=>q.number===number); if(index<0)return; savedQuotations.splice(index,1); persistQuotations(); closeModal(); VIEWS.quotations(document.getElementById('canvas')); toast('Quotation deleted',number,'info'); logAudit('Delete','Quotations',`${number} deleted`); }
+async function printQuotation(){
+  const number=document.getElementById('qNumber')?.value;
+  if(!quoteLines.length && !savedQuotations.find(item=>item.number===number)){ toast('Add quotation items','Add at least one line item before printing.','err'); return; }
+  let url;
+  try{
+    const q=quotationForShare(number);
+    const blob=await generateQuotationPdfBlob(q);
+    url=URL.createObjectURL(blob);
+    const win=window.open(url,'_blank','noopener');
+    if(!win){ const a=document.createElement('a'); a.href=url; a.download=`${q.number.replace(/\//g,'-')}.pdf`; document.body.appendChild(a); a.click(); a.remove();k');
+    logAudit('Export','Quotations',`${q.number} generated as A4 PDF`);
+  }catch(error){ toast('Could not generate PDF', error.message||'Please try again.','err'); }
+  finally{ if(url) set=wrap(term,contentW,8);newPageIf(lines.length*10+3);
+    lines.forEach(l=>{page.drawText(safe(l),{x:M,y,size:8,font,color:ink});y-=10;});y-=2;
   });
 
-  // chart segment toggle
-  c.querySelector('#chartSeg').addEventListener('click', e => {
-    const btn = e.target.closest('button'); if (!btn) return;
-    c.querySelectorAll('#chartSeg button').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    drawMainChart(btn.dataset.s);
-  });
+  // ---- signature block ----
+  newPageIf(58);
+  y-=14;
+  const forLine='For '+DB.brand.legal;
+  page.drawText(safe(forLine),{x:pageW-M-wOf(forLine,9,bold),y,size:9,font:bold,color:ink});
+  page.drawText('Prepared by: '+safe(rep.name),{x:M,y,size:8.3,font,color:ink});
+  if(rep.phone)page.drawText(safe(rep.phone),{x:M,y:y-12,size:8.3,font,color:soft});
+  y-=42;
+  page.drawText('Authorised Signatory',{x:pageW-M-wOf('Authorised Signatory',8.5,font),y,size:8.5,font,color:soft});
 
-  c.querySelectorAll('[data-kpi]').forEach(card => card.onclick = () => navigate(KPI_ROUTE[card.dataset.kpi] || 'analytics'));
-};
+  // ---- page numbers (above footer band, after all pages exist) ----
+  const pages=pdfDoc.getPages(),tot=pages.length;
+  pages.forEach((p,i)=>{const label=`Page ${i+1} of ${tot}`,lw=font.widthOfTextAtSize(label,7.5);p.drawText(label,{x:(pageW-lw)/2,y:footerH+10,size:7.5,font,color:soft});});
 
-function setOverviewPeriod(period) {
-  state.period = period;
-  const factor = PERIOD_FACTOR[period] || 1;
-  const row = document.getElementById('kpiRow');
-  row.querySelectorAll('.kpi-val').forEach(el => {
-    const base = +el.dataset.base;
-    el.dataset.target = el.dataset.kid === 'cnv' ? base : Math.round(base * factor);
-    el.textContent = '0';
-  });
-  animateCounters(row);
-  toast('Period updated', period, 'info');
-  logAudit('View', 'Overview', `Dashboard period changed to "${period}"`);
+  const bytes=await pdfDoc.save();
+  return new Blob([bytes],{type:'application/pdf'});
 }
-
-function exportOverview() {
-  const factor = PERIOD_FACTOR[state.period] || 1;
-  const rows = [['Metric', 'Value', 'Change %', 'Direction', 'Period'],
-    ...DB.kpis.map(k => [k.label, k.id === 'cnv' ? k.value + '%' : (k.fmt === 'inr' ? inr(k.value * factor) : Math.round(k.value * factor)), k.delta, k.dir, state.period])];
-  downloadCSV(rows, 'PTH-CRM-overview-kpis.csv');
-  logAudit('Export', 'Overview', `Exported dashboard KPIs (${state.period})`);
-}
-
-function drawMainChart(seriesName) {
-  const revenue = ['Quotation Value','Revenue booked','Payment collected','Revenue'].some(k => seriesName.includes('Revenue') || seriesName.includes(k));
-  const isRev = seriesName === 'Revenue booked' || seriesName === 'Revenue';
-  areaChart(document.getElementById('mainChart'), {
-    labels: DB.months,
-    series: [
-      { name: seriesName, values: DB.series[seriesName] || DB.series['Enquiries received'] },
-      { name: 'Orders received', values: DB.series['Orders received'], color: 'var(--info)' },
-    ],
-  }, { height: 300, fmtTip: v => isRev ? '₹' + v + 'L' : v });
-}
-
-function renderExpiryTimeline(items) {
-  return items.map((e, i) => `
-    <div class="tl-item" onclick="openExpiryDrawer('${esc(e.name)}')">
-      <div class="tl-rail"><span class="tl-dot" style="background:${dotForDays(e.days)}"></span>${i < items.length - 1 ? '<span class="tl-line"></span>' : ''}</div>
-      <div class="tl-body"><div class="tl-title">${e.name}</div><div class="tl-meta">${e.cat} · ${e.person}</div></div>
-      <div class="tl-right"><div class="tl-days ${e.days < 7 ? 'crit' : e.days < 30 ? 'warn' : ''}">${e.days < 0 ? 'Expired' : e.days + 'd'}</div><div class="tl-meta">${e.expiry}</div></div>
-    </div>`).join('');
-}
-
-function openExpiryDrawer(name) {
-  const e = DB.expiries.find(x => x.name === name) || DB.expiries[0];
-  openDrawer(`
-    <div class="drawer-head">
-      <button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
-      <div style="font-size:12px;color:var(--text-muted)">${e.cat}</div>
-      <div style="font-size:19px;font-weight:600;margin:3px 0 10px">${e.name}</div>
-      ${statusBadge(e.status)}
-    </div>
-    <div class="drawer-tabs">
-      <button class="drawer-tab active" data-tab="ov">Overview</button>
-      <button class="drawer-tab" data-tab="rn">Renewal</button>
-      <button class="drawer-tab" data-tab="tk">Tasks</button>
-    </div>
-    <div class="drawer-body">
-      <div class="drawer-pane" id="pane-ov">
-        <div class="kv"><span class="k">Responsible Person</span><span class="v">${e.person}</span></div>
-        <div class="kv"><span class="k">Expiry Date</span><span class="v">${e.expiry}</span></div>
-        <div class="kv"><span class="k">Remaining Days</span><span class="v">${e.days < 0 ? 'Expired' : e.days + ' days'}</span></div>
-        <div class="kv"><span class="k">Priority</span><span class="v"><span class="prio prio-${e.prio === 'high' ? 'high' : e.prio === 'med' ? 'med' : 'low'}">${e.prio}</span></span></div>
-        <div class="kv"><span class="k">Renewal Status</span><span class="v">${statusBadge(e.status)}</span></div>
-        <button class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center" onclick="toast('Renewal initiated','Task assigned to ${esc(e.person)}')">Initiate Renewal</button>
-      </div>
-      <div class="drawer-pane" id="pane-rn" style="display:none"><div class="timeline">${renewalTimeline()}</div></div>
-      <div class="drawer-pane" id="pane-tk" style="display:none"><div class="empty"><div class="empty-ico">${I.check}</div><h4>2 open tasks</h4><p>Collect documents · Book calibration slot</p></div></div>
-    </div>`);
-}
-function renewalTimeline() {
-  const steps = ['Renewal task created','Documents collected','Application submitted','Fees paid','Query received','Response submitted','Approval received','New certificate uploaded'];
-  return steps.map((s, i) => `<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:${i < 4 ? 'var(--primary-dark)' : 'var(--border)'}"></span>${i < steps.length - 1 ? '<span class="tl-line"></span>' : ''}</div><div class="tl-body"><div class="tl-title" style="font-size:12.5px">${s}</div><div class="tl-meta">${i < 4 ? 'Completed' : 'Pending'}</div></div></div>`).join('');
-}
-
-/* ---------- CRM PIPELINE ---------- */
-VIEWS.pipeline = function (c) {
-  const cols = DB.pipeline.columns;
-  const actions = `<button class="btn btn-ghost hide-sm">${I.filter}Filter</button><button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Lead</button>`;
-  const colHtml = cols.map(col => {
-    const leads = DB.pipeline.leads.filter(l => l.col === col.id);
-    const total = leads.reduce((a, l) => a + l.val, 0);
-    return `
-      <div class="kcol">
-        <div class="kcol-head"><span class="kdot" style="background:${col.color}"></span><h4>${col.name}</h4><span class="kcount">${leads.length}</span></div>
-        <div class="kcol-val">${inr(total)}</div>
-        <div class="kcards" data-col="${col.id}">${leads.map(kanbanCard).join('')}</div>
-      </div>`;
-  }).join('');
-  c.innerHTML = `${pageHead('CRM Pipeline', 'Drag leads between stages. Moving to Won requests PO details; Lost requests a reason.', actions)}
-    <div class="kanban enter">${colHtml}</div>`;
-  wireKanban(c);
-};
-function kanbanCard(l) {
-  return `<div class="kcard" draggable="true" data-id="${l.id}" onclick="openLeadDrawer('${l.id}')">
-    <div class="kcard-top"><div><div class="kcard-cust">${l.cust}</div><div class="kcard-proj">${l.proj}</div></div>${l.prio === 'high' ? '<span class="prio prio-high" style="margin-left:auto">High</span>' : ''}</div>
-    <span class="kcard-tag">${l.cat}</span>
-    <div class="kcard-meta"><span class="kcard-val">${inr(l.val)}</span><span>·</span><span>${l.follow}</span></div>
-    <div class="kcard-foot"><span class="mini-avatar">${l.person}</span><div class="prob-bar"><span style="width:${l.prob}%"></span></div><span style="font-size:11px;color:var(--text-muted)">${l.prob}%</span></div>
-  </div>`;
-}
-function wireKanban(c) {
-  let dragged = null;
-  c.querySelectorAll('.kcard').forEach(card => {
-    card.addEventListener('dragstart', () => { dragged = card; card.classList.add('dragging'); });
-    card.addEventListener('dragend', () => { card.classList.remove('dragging'); dragged = null; });
-  });
-  c.querySelectorAll('.kcards').forEach(zone => {
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault(); zone.classList.remove('drag-over');
-      if (!dragged) return;
-      const id = dragged.dataset.id, newCol = zone.dataset.col;
-      const lead = DB.pipeline.leads.find(l => l.id === id);
-      const move = () => { lead.col = newCol; zone.appendChild(dragged); refreshColumnTotals(c); };
-      if (newCol === 'lost') {
-        openModal(`<div class="modal-head"><div class="modal-title">Mark as Lost</div></div><div class="modal-body"><div class="field"><label>Reason for loss <span class="req">*</span></label><select class="select" id="lostReason"><option>Price too high</option><option>Competitor selected</option><option>Project cancelled</option><option>No accreditation match</option><option>Delayed response</option></select></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal();VIEWS.pipeline(document.getElementById('canvas'))">Cancel</button><button class="btn btn-primary" onclick="closeModal();toast('Lead moved to Lost','Reason logged to activity trail','info')">Confirm</button></div>`);
-        move();
-      } else if (newCol === 'won') {
-        openModal(`<div class="modal-head"><div class="modal-title">Order Won — Purchase Order Details</div></div><div class="modal-body"><div class="field"><label>PO Number <span class="req">*</span></label><input class="input" placeholder="e.g. PO/2026/0093"></div><div class="field"><label>PO Value</label><input class="input" value="${inr(lead.val)}"></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal();VIEWS.pipeline(document.getElementById('canvas'))">Cancel</button><button class="btn btn-lime" onclick="closeModal();toast('Order confirmed','Job card generation queued')">Confirm Won</button></div>`);
-        move();
-      } else move();
-      const stageName = DB.pipeline.columns.find(x => x.id === newCol).name;
-      toast('Lead moved', `${lead.cust} → ${stageName}`, 'info');
-      logAudit('Status Change', 'CRM Pipeline', `${lead.cust} moved to ${stageName}`);
-    });
-  });
-}
-function refreshColumnTotals(c) {
-  c.querySelectorAll('.kcol').forEach(col => {
-    const zone = col.querySelector('.kcards');
-    const ids = [...zone.querySelectorAll('.kcard')].map(k => k.dataset.id);
-    const leads = DB.pipeline.leads.filter(l => ids.includes(l.id));
-    col.querySelector('.kcount').textContent = leads.length;
-    col.querySelector('.kcol-val').textContent = inr(leads.reduce((a, l) => a + l.val, 0));
-  });
-}
-function openLeadDrawer(id) {
-  const l = DB.pipeline.leads.find(x => x.id === id);
-  openDrawer(`
-    <div class="drawer-head"><button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
-      <div style="font-size:12px;color:var(--text-muted)">${l.id} · ${l.cat}</div>
-      <div style="font-size:19px;font-weight:600;margin:3px 0 4px">${l.cust}</div>
-      <div class="page-desc">${l.proj}</div></div>
-    <div class="drawer-tabs"><button class="drawer-tab active" data-tab="ov">Overview</button><button class="drawer-tab" data-tab="ac">Activity</button></div>
-    <div class="drawer-body">
-      <div class="drawer-pane" id="pane-ov">
-        <div class="kv"><span class="k">Expected Value</span><span class="v">${inr(l.val)}</span></div>
-        <div class="kv"><span class="k">Probability</span><span class="v">${l.prob}%</span></div>
-        <div class="kv"><span class="k">Assigned To</span><span class="v">${l.person}</span></div>
-        <div class="kv"><span class="k">Next Follow-up</span><span class="v">${l.follow}</span></div>
-        <div class="kv"><span class="k">Priority</span><span class="v"><span class="prio prio-${l.prio === 'high' ? 'high' : l.prio === 'med' ? 'med' : 'low'}">${l.prio}</span></span></div>
-        <button class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center" onclick="toast('Quotation started','Draft created for ${esc(l.cust)}')">Prepare Quotation</button>
-      </div>
-      <div class="drawer-pane" id="pane-ac" style="display:none"><div class="timeline">${['Enquiry received','Requirement reviewed','Site visit scheduled','Quotation drafted'].map((s,i)=>`<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:var(--primary-dark)"></span>${i<3?'<span class="tl-line"></span>':''}</div><div class="tl-body"><div class="tl-title" style="font-size:12.5px">${s}</div><div class="tl-meta">2 days ago</div></div></div>`).join('')}</div></div>
-    </div>`);
-}
-
-/* ---------- CREDENTIALS ---------- */
-let credSort = { key: 'days', dir: 1 };
-VIEWS.credentials = function (c) {
-  const actions = `<button class="btn btn-ghost hide-sm">${I.upload}Bulk Upload</button><button class="btn btn-ghost hide-sm">${I.export}Export</button><button class="btn btn-primary" onclick="openCredentialModal()">${I.plus}Add Credential</button>`;
-  const total = DB.credentials.length;
-  const valid = DB.credentials.filter(x => x.status === 'valid').length;
-  const exp90 = DB.credentials.filter(x => x.days >= 0 && x.days <= 90).length;
-  const renew = DB.credentials.filter(x => x.status === 'renewal').length;
-  const expired = DB.credentials.filter(x => x.status === 'expired').length;
-  const missing = 6;
-  c.innerHTML = `${pageHead('Credentials', 'Central repository for all laboratory legal, accreditation and calibration credentials.', actions)}
-    <div class="stat-strip enter">
-      <div class="stat-chip"><div class="sc-val tnum">${total}</div><div class="sc-label">Total credentials</div></div>
-      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--primary-dark)">${valid}</div><div class="sc-label"><span class="dot" style="background:var(--primary-dark)"></span>Valid</div></div>
-      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--warning)">${exp90}</div><div class="sc-label"><span class="dot" style="background:var(--warning)"></span>Expiring in 90 days</div></div>
-      <div class="stat-chip"><div class="sc-val tnum">${renew}</div><div class="sc-label"><span class="dot" style="background:var(--info)"></span>Renewal in progress</div></div>
-      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--danger)">${expired}</div><div class="sc-label"><span class="dot" style="background:var(--danger)"></span>Expired</div></div>
-      <div class="stat-chip"><div class="sc-val tnum">${missing}</div><div class="sc-label"><span class="dot" style="background:var(--text-muted)"></span>Missing mandatory</div></div>
-    </div>
-    <div class="filter-bar enter">
-      <div class="filter-search">${I.search}<input placeholder="Search credentials..." id="credSearch"></div>
-      <button class="fdrop">Category ${I.chevD}</button>
-      <button class="fdrop">Status ${I.chevD}</button>
-      <button class="fdrop">Branch ${I.chevD}</button>
-      <button class="fdrop">Issuing Authority ${I.chevD}</button>
-      <button class="fdrop">Responsible ${I.chevD}</button>
-    </div>
-    <div class="card enter"><div class="tbl-wrap"><table class="tbl" id="credTable">
-      <thead><tr>
-        <th style="width:36px"><span class="chk" onclick="toggleAllRows(this)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span></th>
-        <th data-k="id">ID <span class="sort-ico">↕</span></th>
-        <th data-k="name">Credential <span class="sort-ico">↕</span></th>
-        <th data-k="cat">Category</th>
-        <th data-k="auth">Issuing Authority</th>
-        <th data-k="branch">Branch</th>
-        <th data-k="expiry">Expiry <span class="sort-ico">↕</span></th>
-        <th data-k="days">Remaining <span class="sort-ico">↕</span></th>
-        <th data-k="person">Responsible</th>
-        <th data-k="status">Status</th>
-        <th>Verified</th>
-        <th></th>
-      </tr></thead>
-      <tbody id="credBody"></tbody>
-    </table></div></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:12.5px;color:var(--text-secondary)">
-      <span>Showing <b>${total}</b> credentials</span>
-      <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">${I.chevL}</button><button class="btn btn-primary btn-sm">1</button><button class="btn btn-ghost btn-sm">2</button><button class="btn btn-ghost btn-sm">${I.chevR}</button></div>
-    </div>`;
-  renderCredRows();
-  c.querySelectorAll('#credTable thead th[data-k]').forEach(th => th.onclick = () => {
-    const k = th.dataset.k; credSort.dir = credSort.key === k ? -credSort.dir : 1; credSort.key = k; renderCredRows();
-  });
-  c.querySelector('#credSearch').addEventListener('input', e => renderCredRows(e.target.value));
-};
-function renderCredRows(q = '') {
-  const body = document.getElementById('credBody'); if (!body) return;
-  let rows = DB.credentials.filter(x => !q || (x.name + x.auth + x.id + x.person).toLowerCase().includes(q.toLowerCase()));
-  rows.sort((a, b) => (a[credSort.key] > b[credSort.key] ? 1 : -1) * credSort.dir);
-  body.innerHTML = rows.map(r => `
-    <tr onclick="openCredDrawer('${r.id}')">
-      <td onclick="event.stopPropagation()"><span class="chk" onclick="this.classList.toggle('on');this.closest('tr').classList.toggle('selected')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span></td>
-      <td class="cell-dim tnum">${r.id}</td>
-      <td class="cell-strong">${r.name}</td>
-      <td class="cell-dim">${r.cat}</td>
-      <td class="cell-dim">${r.auth}</td>
-      <td class="cell-dim">${r.branch}</td>
-      <td class="tnum">${r.expiry}</td>
-      <td class="tnum">${r.days > 9000 ? '—' : r.days < 0 ? `<span style="color:var(--danger)">Expired</span>` : `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${dotForDays(r.days)}"></span>${r.days}d</span>`}</td>
-      <td class="cell-dim">${r.person}</td>
-      <td>${statusBadge(r.status)}</td>
-      <td>${r.verified ? `<span style="color:var(--primary-dark)" title="Verified">${I.check}</span>` : `<span style="color:var(--text-muted)" title="Pending">${I.clock}</span>`}</td>
-      <td onclick="event.stopPropagation()"><div class="row-actions"><button class="mini-act" onclick="openCredDrawer('${r.id}')" title="View">${I.eye}</button><button class="mini-act" title="Edit">${I.edit}</button><button class="mini-act" title="More">${I.more}</button></div></td>
-    </tr>`).join('');
-}
-function toggleAllRows(el) {
-  el.classList.toggle('on');
-  const on = el.classList.contains('on');
-  document.querySelectorAll('#credBody .chk').forEach(chk => { chk.classList.toggle('on', on); chk.closest('tr').classList.toggle('selected', on); });
-}
-function openCredDrawer(id) {
-  const r = DB.credentials.find(x => x.id === id);
-  openDrawer(`
-    <div class="drawer-head"><button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
-      <div style="font-size:12px;color:var(--text-muted)">${r.id} · ${r.cat}</div>
-      <div style="font-size:19px;font-weight:600;margin:3px 0 10px">${r.name}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${statusBadge(r.status)}<span class="badge badge-neutral"><span class="dot"></span>${r.conf}</span></div></div>
-    <div class="drawer-tabs">
-      <button class="drawer-tab active" data-tab="ov">Overview</button>
-      <button class="drawer-tab" data-tab="doc">Document</button>
-      <button class="drawer-tab" data-tab="rn">Renewal History</button>
-      <button class="drawer-tab" data-tab="ck">Checklist</button>
-      <button class="drawer-tab" data-tab="au">Audit Trail</button>
-    </div>
-    <div class="drawer-body">
-      <div class="drawer-pane" id="pane-ov">
-        <div class="kv"><span class="k">Issuing Authority</span><span class="v">${r.auth}</span></div>
-        <div class="kv"><span class="k">Certificate Number</span><span class="v tnum">${r.cert}</span></div>
-        <div class="kv"><span class="k">Branch</span><span class="v">${r.branch}</span></div>
-        <div class="kv"><span class="k">Issue Date</span><span class="v tnum">${r.issue}</span></div>
-        <div class="kv"><span class="k">Expiry Date</span><span class="v tnum">${r.expiry}</span></div>
-        <div class="kv"><span class="k">Remaining</span><span class="v">${r.days > 9000 ? 'No expiry' : r.days < 0 ? 'Expired' : r.days + ' days'}</span></div>
-        <div class="kv"><span class="k">Responsible Person</span><span class="v">${r.person}</span></div>
-        <div class="kv"><span class="k">Verification</span><span class="v">${r.verified ? 'Verified' : 'Pending verification'}</span></div>
-        <div class="kv"><span class="k">Confidentiality</span><span class="v">${r.conf}</span></div>
-        <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="flex:1;justify-content:center" onclick="toast('Renewal initiated','Assigned to ${esc(r.person)}')">Initiate Renewal</button><button class="btn btn-ghost">${I.export}</button></div>
-      </div>
-      <div class="drawer-pane" id="pane-doc" style="display:none">
-        <div style="aspect-ratio:1/1.25;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px;display:grid;place-items:center;color:var(--text-muted);margin-bottom:12px"><div style="text-align:center">${I.file}<div style="margin-top:8px;font-size:12px">${r.cert}.pdf · PDF preview</div></div></div>
-        <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center">${I.export}Download</button><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center">${I.upload}Replace</button><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center">Compare</button></div>
-        <div style="margin-top:14px;font-size:12px;color:var(--text-secondary)">Version history</div>
-        <div class="kv"><span class="k">v3 · Current</span><span class="v">${r.issue}</span></div>
-        <div class="kv"><span class="k">v2</span><span class="v" style="color:var(--text-muted)">2022-03-11 (obsolete)</span></div>
-      </div>
-      <div class="drawer-pane" id="pane-rn" style="display:none"><div class="timeline">${renewalTimeline()}</div></div>
-      <div class="drawer-pane" id="pane-ck" style="display:none">${['Application form','Fee payment receipt','Scope document','Signatory approval','Equipment list'].map(x=>`<div class="kv"><span class="v">${x}</span><span class="v" style="margin-left:auto;color:var(--primary-dark)">${I.check}</span></div>`).join('')}</div>
-      <div class="drawer-pane" id="pane-au" style="display:none"><div class="timeline">${['Created by K. Patel','Verified by R. Mehta','Document uploaded','Status set to Valid'].map((s,i)=>`<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:var(--primary-dark)"></span>${i<3?'<span class="tl-line"></span>':''}</div><div class="tl-body"><div class="tl-title" style="font-size:12.5px">${s}</div><div class="tl-meta">${r.issue} · 10:${20+i} AM</div></div></div>`).join('')}</div></div>
-    </div>`);
-}
-
-/* ---------- ADD CREDENTIAL MODAL ---------- */
-function openCredentialModal() {
-  openModal(`
-    <div class="modal-head"><div class="modal-title">Add Credential</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
-    <div class="modal-body">
-      <div class="field" id="f-name"><label>Credential Name <span class="req">*</span></label><input class="input" id="cName" placeholder="e.g. NABL Accreditation Certificate"><div class="field-err">${I.info}This field is required</div></div>
-      <div class="form-grid">
-        <div class="field"><label>Category</label><select class="select">${['NABL & ISO','Government Approvals','Legal Documents','Client Registrations','Staff Credentials','Equipment Calibration','Financial Credentials','Accreditation Scope'].map(x=>`<option>${x}</option>`).join('')}</select></div>
-        <div class="field"><label>Branch</label><select class="select">${DB.branches.map(x=>`<option>${x}</option>`).join('')}</select></div>
-      </div>
-      <div class="field" id="f-cert"><label>Certificate Number <span class="req">*</span></label><input class="input" id="cCert" placeholder="e.g. TC-8421"><div class="field-err">${I.info}This field is required</div></div>
-      <div class="form-grid">
-        <div class="field"><label>Issue Date</label><input class="input" type="date"></div>
-        <div class="field"><label>Expiry Date</label><input class="input" type="date"></div>
-      </div>
-      <div class="field"><label>Responsible Person</label><select class="select">${DB.staff.map(s=>`<option>${s.name}</option>`).join('')}</select></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitCredential()">${I.check}Save Credential</button></div>`);
-}
-function submitCredential() {
-  let ok = true;
-  ['cName', 'cCert'].forEach(id => {
-    const input = document.getElementById(id), field = input.closest('.field');
-    if (!input.value.trim()) { field.classList.add('show-err'); input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 350); ok = false; }
-    else field.classList.remove('show-err');
-  });
-  if (!ok) return;
-  const cn = document.getElementById('cName').value.trim();
-  closeModal();
-  toast('Credential saved', 'Added to repository and expiry tracker');
-  logAudit('Create', 'Credentials', `Credential "${cn}" added to repository`);
-}
-
-/* ---------- APPROVALS ---------- */
-VIEWS.approvals = function (c) {
-  const stages = DB.approvalStages;
-  const actions = `<button class="btn btn-ghost hide-sm">${I.filter}Filter</button><button class="btn btn-primary">${I.plus}New Approval</button>`;
-  c.innerHTML = `${pageHead('Approvals', 'Track government, PSU, railway, metro and client registrations through their workflow.', actions)}
-    <div class="grid dash-grid enter" style="margin-bottom:16px">
-      ${[['In Progress',DB.approvalWorkflow.filter(a=>a.stage<10).length,'var(--info)'],['Approved',DB.approvalWorkflow.filter(a=>a.stage===10||a.stage===11).length,'var(--primary-dark)'],['Query Raised',1,'var(--warning)'],['Renewal Due',DB.approvals.filter(a=>a.status==='expiring').length,'var(--danger)']].map(([l,v,col])=>
-        `<div class="col-3"><div class="card card-pad kpi hoverlift"><span class="kpi-label">${l}</span><div class="kpi-val tnum" style="color:${col}">${v}</div></div></div>`).join('')}
-    </div>
-    <div class="card card-pad enter" style="margin-bottom:16px">
-      <div class="card-head"><h3>Approval Workflow Board</h3><div class="card-sub" style="margin-left:auto">Horizontal stage progression</div></div>
-      <div style="margin-top:14px;display:flex;flex-direction:column;gap:16px">
-        ${DB.approvalWorkflow.map(a => approvalRow(a, stages)).join('')}
-      </div>
-    </div>
-    <div class="card enter"><div class="card-pad card-head"><h3>Approval Records</h3></div><div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>Authority</th><th>Approved Service</th><th>Current Stage</th><th>Responsible</th><th>Progress</th></tr></thead>
-      <tbody>${DB.approvalWorkflow.map(a => `<tr><td class="cell-strong">${a.name}</td><td class="cell-dim">${a.service}</td><td>${statusBadge(a.stage >= 10 ? 'approved' : a.stage === 5 ? 'submitted' : a.stage === 6 ? 'observation' : 'review')}</td><td class="cell-dim">${a.person}</td><td class="tnum">${Math.round(a.stage / 12 * 100)}%</td></tr>`).join('')}</tbody>
-    </table></div></div>`;
-  requestAnimationFrame(() => setTimeout(() => c.querySelectorAll('.stage-fill').forEach(f => f.style.width = f.dataset.w + '%'), 150));
-};
-function approvalRow(a, stages) {
-  const pct = a.stage / (stages.length - 1) * 100;
-  return `<div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div class="appr-ico">${I.approval}</div><div style="flex:1"><div class="appr-name">${a.name}</div><div class="appr-auth">${a.auth} · ${a.service}</div></div><span class="badge ${a.stage >= 10 ? 'badge-approved' : 'badge-review'}"><span class="dot"></span>${stages[a.stage]}</span></div>
-    <div style="position:relative;height:6px;background:var(--surface-soft);border-radius:4px;overflow:hidden"><div class="stage-fill" style="height:100%;width:0;background:var(--primary);border-radius:4px;transition:width 700ms cubic-bezier(0.22,0.61,0.36,1)" data-w="${pct}"></div></div>
-    <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10.5px;color:var(--text-muted)"><span>Requirement</span><span>Submitted</span><span>Audit</span><span>Approved</span></div>
-  </div>`;
-}
-
-/* ---------- CERTIFICATIONS ---------- */
-VIEWS.certifications = function (c) {
-  const flow = ['Draft','Result Entry','Technical Review','Quality Review','Authorised Signatory Approval','Digital Signature','Issued'];
-  c.innerHTML = `${pageHead('Certifications', 'Organisation accreditation certificates and customer-facing test / calibration certificates.', `<button class="btn btn-primary">${I.plus}New Certificate</button>`)}
-    <div class="grid dash-grid">
-      <div class="col-6"><div class="card card-pad enter" style="height:100%"><div class="card-head"><h3>Organisation Certificates</h3></div>
-        <div style="margin-top:6px">${DB.certificates.org.map(o => `<div class="appr-item"><div class="appr-ico">${I.cert}</div><div class="appr-main"><div class="appr-name">${o.name}</div><div class="appr-auth">${o.authority} · ${o.num}</div></div><div style="text-align:right"><div style="margin-bottom:4px">${statusBadge(o.status)}</div><div style="font-size:11px;color:var(--text-muted)" class="tnum">${o.expiry}</div></div></div>`).join('')}</div>
-      </div></div>
-      <div class="col-6"><div class="card card-pad enter" style="height:100%"><div class="card-head"><h3>Customer Test Certificates</h3><div class="card-sub" style="margin-left:auto">Live workflow</div></div>
-        <div class="tbl-wrap" style="margin-top:8px"><table class="tbl"><thead><tr><th>Report</th><th>Client</th><th>Stage</th><th>Signatory</th></tr></thead>
-        <tbody>${DB.certificates.customer.map(cu => `<tr><td class="cell-strong">${cu.name}<div class="cell-dim tnum" style="font-size:11px">${cu.num}</div></td><td class="cell-dim">${cu.client}</td><td><span class="badge ${cu.stage === 'Issued' ? 'badge-issued' : 'badge-review'}"><span class="dot"></span>${cu.stage}</span></td><td class="cell-dim">${cu.signatory}</td></tr>`).join('')}</tbody></table></div>
-      </div></div>
-      <div class="col-12"><div class="card card-pad enter"><div class="card-head"><h3>Certificate Workflow</h3></div>
-        <div style="display:flex;align-items:center;gap:0;margin-top:16px;overflow-x:auto;padding-bottom:6px">
-          ${flow.map((s, i) => `<div style="display:flex;align-items:center;flex-shrink:0"><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:${i < 5 ? 'var(--primary)' : 'var(--surface-soft)'};color:${i < 5 ? 'var(--black)' : 'var(--text-muted)'};border:1px solid ${i < 5 ? 'var(--primary)' : 'var(--border)'};font-weight:700;font-size:12px">${i + 1}</div><span style="font-size:11px;color:var(--text-secondary);max-width:90px;text-align:center">${s}</span></div>${i < flow.length - 1 ? `<div style="width:40px;height:2px;background:${i < 4 ? 'var(--primary)' : 'var(--border)'};margin:0 4px;margin-bottom:22px"></div>` : ''}</div>`).join('')}
-        </div>
-        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${['QR Verification','Revision Control','Cancellation Workflow','Superseded Marking','Download Log','Email Dispatch'].map(t => `<span class="badge badge-neutral"><span class="dot"></span>${t}</span>`).join('')}</div>
-      </div></div>
-    </div>`;
-};
-
-/* ---------- PACKAGE BUILDER ---------- */
-let pkgSelected = [];
-VIEWS.package = function (c) {
-  pkgSelected = pkgSelected.length ? pkgSelected : ['d1', 'd2', 'd4', 'd6', 'd8'];
-  c.innerHTML = `${pageHead('Credential Package Builder', 'Assemble tender, prequalification and empanelment document packages.', `<button class="btn btn-ghost hide-sm">${I.export}Generate ZIP</button><button class="btn btn-primary">${I.file}Generate Indexed PDF</button>`)}
-    <div class="builder enter">
-      <div class="card card-pad">
-        <div class="card-head"><h3 style="font-size:13.5px">Available Documents</h3></div>
-        <div style="margin-top:10px;max-height:520px;overflow-y:auto" id="pkgAvail"></div>
-      </div>
-      <div class="card card-pad">
-        <div class="card-head"><h3 style="font-size:13.5px">Package Contents</h3><span class="card-sub" style="margin-left:auto">Drag to reorder</span></div>
-        <div style="margin-top:10px;min-height:400px" id="pkgSelected"></div>
-      </div>
-      <div class="card card-pad" style="position:sticky;top:80px">
-        <div class="card-head"><h3 style="font-size:13.5px">Package Summary</h3></div>
-        <div class="field" style="margin-top:12px"><label>Package Name</label><input class="input" value="GMRC Prequalification 2026"></div>
-        <div class="field"><label>Tender Number</label><input class="input" value="GMRC/QA/2026/0114"></div>
-        <div id="pkgStats" style="margin-top:6px"></div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
-          <button class="btn btn-lime" style="justify-content:center" onclick="toast('Package generated','Indexed PDF with cover page & TOC created')">${I.check}Generate Package</button>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" onclick="this.classList.toggle('on')"></span>Add cover page & TOC</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" onclick="this.classList.toggle('on')"></span>Apply watermark</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle" onclick="this.classList.toggle('on')"></span>Digital signature</label>
-        </div>
-      </div>
-    </div>`;
-  renderPackage();
-};
-function renderPackage() {
-  const avail = document.getElementById('pkgAvail'), sel = document.getElementById('pkgSelected'), stats = document.getElementById('pkgStats');
-  avail.innerHTML = DB.packageDocs.map(d => `<div class="doc-item ${pkgSelected.includes(d.id) ? 'selected-doc' : ''}" onclick="togglePkg('${d.id}')"><div class="doc-ico">${I.file}</div><span class="doc-name">${d.name}</span>${d.status !== 'valid' ? `<span class="prio prio-${d.status === 'expired' ? 'high' : 'med'}">${d.status}</span>` : ''}<span class="doc-add">${pkgSelected.includes(d.id) ? I.check : I.plus}</span></div>`).join('');
-  const selDocs = pkgSelected.map(id => DB.packageDocs.find(d => d.id === id)).filter(Boolean);
-  sel.innerHTML = selDocs.length ? selDocs.map((d, i) => `<div class="doc-item" draggable="true" data-id="${d.id}"><div class="doc-ico">${i + 1}</div><span class="doc-name">${d.name}</span><button class="mini-act" onclick="togglePkg('${d.id}')">${I.x}</button></div>`).join('') : `<div class="empty"><div class="empty-ico">${I.document}</div><h4>No documents yet</h4><p>Select documents from the left panel</p></div>`;
-  const missing = 4 - selDocs.filter(d => ['d1', 'd2', 'd4', 'd8'].includes(d.id)).length;
-  const expiring = selDocs.filter(d => d.status === 'expiring').length;
-  const expired = selDocs.filter(d => d.status === 'expired').length;
-  stats.innerHTML = `
-    <div class="pkg-summary-row"><span class="k">Documents selected</span><span class="v">${selDocs.length}</span></div>
-    <div class="pkg-summary-row"><span class="k">Mandatory missing</span><span class="v" style="color:${missing > 0 ? 'var(--danger)' : 'var(--primary-dark)'}">${Math.max(0, missing)}</span></div>
-    <div class="pkg-summary-row"><span class="k">Expiring documents</span><span class="v" style="color:${expiring ? 'var(--warning)' : 'inherit'}">${expiring}</span></div>
-    <div class="pkg-summary-row"><span class="k">Expired documents</span><span class="v" style="color:${expired ? 'var(--danger)' : 'inherit'}">${expired}</span></div>
-    <div class="pkg-summary-row"><span class="k">Estimated pages</span><span class="v">${selDocs.length * 3 + 2}</span></div>`;
-  // drag reorder
-  let dragged = null;
-  sel.querySelectorAll('.doc-item[draggable]').forEach(item => {
-    item.addEventListener('dragstart', () => { dragged = item; item.style.opacity = '0.4'; });
-    item.addEventListener('dragend', () => { dragged = null; item.style.opacity = '1'; renderPackage(); });
-    item.addEventListener('dragover', e => { e.preventDefault(); const rect = item.getBoundingClientRect(); const after = e.clientY > rect.top + rect.height / 2; if (dragged && dragged !== item) item.parentNode.insertBefore(dragged, after ? item.nextSibling : item); });
-  });
-}
-function togglePkg(id) { pkgSelected = pkgSelected.includes(id) ? pkgSelected.filter(x => x !== id) : [...pkgSelected, id]; renderPackage(); }
-
-/* ---------- EXPIRY CALENDAR ---------- */
-VIEWS.calendar = function (c) {
-  const groups = [['Next 7 days', DB.expiries.filter(e => e.days < 7)], ['Next 30 days', DB.expiries.filter(e => e.days >= 7 && e.days < 30)], ['Next 60 days', DB.expiries.filter(e => e.days >= 30 && e.days < 60)], ['Next 90 days', DB.expiries.filter(e => e.days >= 60 && e.days < 90)]];
-  c.innerHTML = `${pageHead('Expiry Calendar', 'Upcoming credential, calibration and approval expiries grouped by urgency.', `<div class="seg"><button class="on">Timeline</button><button>Month</button></div>`)}
-    <div class="grid dash-grid">
-      <div class="col-8"><div class="card card-pad enter"><div class="card-head"><h3>Upcoming Expiries</h3></div>
-        <div class="timeline" style="margin-top:6px">${groups.map(([label, items]) => items.length ? `<div class="tl-group-label">${label} · ${items.length}</div>${renderExpiryTimeline(items)}` : '').join('')}</div>
-      </div></div>
-      <div class="col-4"><div class="card card-pad enter"><div class="card-head"><h3>July 2026</h3><div style="display:flex;gap:4px;margin-left:auto"><button class="mini-act">${I.chevL}</button><button class="mini-act">${I.chevR}</button></div></div>
-        <div class="cal-grid" style="margin-top:12px">${['S','M','T','W','T','F','S'].map(d => `<div class="cal-dow">${d}</div>`).join('')}${calDays()}</div>
-        <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
-          <div class="legend-row"><span class="lg-dot" style="background:var(--danger)"></span><span class="lg-name">Critical (< 7 days)</span></div>
-          <div class="legend-row"><span class="lg-dot" style="background:var(--warning)"></span><span class="lg-name">Warning (30–60 days)</span></div>
-          <div class="legend-row"><span class="lg-dot" style="background:var(--primary-dark)"></span><span class="lg-name">Safe (> 60 days)</span></div>
-        </div>
-      </div></div>
-    </div>`;
-};
-function calDays() {
-  const evts = { 1: 'red', 5: 'orange', 12: 'yellow', 19: 'yellow', 28: 'green' };
-  let html = '';
-  for (let i = 0; i < 3; i++) html += `<div class="cal-cell muted"><div class="cal-date">${29 + i}</div></div>`;
-  for (let d = 1; d <= 31; d++) {
-    const ev = evts[d];
-    const colMap = { red: 'var(--danger-tint);color:var(--danger)', orange: '#FDEbD8;color:#F57C1F', yellow: 'var(--warning-tint);color:#9a6c00', green: 'var(--primary-tint);color:var(--primary-dark)' };
-    html += `<div class="cal-cell ${d === 28 ? 'today' : ''}"><div class="cal-date">${d}</div>${ev ? `<div class="cal-ev" style="background:${colMap[ev]}">Expiry</div>` : ''}</div>`;
-  }
-  return html;
-}
-
-/* ---------- NOTIFICATIONS ---------- */
-VIEWS.notifications = function (c) {
-  const toneMap = { danger: ['var(--danger-tint)', 'var(--danger)'], warning: ['var(--warning-tint)', '#9a6c00'], primary: ['var(--primary-tint)', 'var(--primary-dark)'], info: ['var(--info-tint)', 'var(--info)'] };
-  const icoMap = { alert: I.alert, clock: I.clock, check: I.check, file: I.file, inr: I.inr };
-  c.innerHTML = `${pageHead('Notification Centre', 'Compliance alerts, renewal reminders and workflow updates.', `<button class="btn btn-ghost" onclick="document.querySelectorAll('.notif-item').forEach(n=>n.classList.remove('unread'));toast('All marked read','')">Mark all read</button>`)}
-    <div class="grid dash-grid">
-      <div class="col-8"><div class="card enter">
-        <div class="card-pad" style="border-bottom:1px solid var(--border);display:flex;gap:8px"><div class="seg"><button class="on">All</button><button>Unread</button><button>Compliance</button><button>Payments</button></div></div>
-        <div style="padding:8px">${DB.notifications.map(n => { const [bg, fg] = toneMap[n.tone]; return `<div class="notif-item ${n.unread ? 'unread' : ''}" onclick="this.classList.remove('unread')"><div class="notif-ico" style="background:${bg};color:${fg}">${icoMap[n.icon]}</div><div class="notif-body"><div class="notif-title">${n.title}</div><div class="notif-text">${n.text}</div><div class="notif-time">${n.time}</div></div></div>`; }).join('')}</div>
-      </div></div>
-      <div class="col-4"><div class="card card-pad enter"><div class="card-head"><h3>Summary</h3></div>
-        <div style="margin-top:10px">
-          <div class="pkg-summary-row"><span class="k">Unread</span><span class="v" style="color:var(--danger)">3</span></div>
-          <div class="pkg-summary-row"><span class="k">Compliance alerts</span><span class="v">2</span></div>
-          <div class="pkg-summary-row"><span class="k">Payment reminders</span><span class="v">1</span></div>
-          <div class="pkg-summary-row"><span class="k">Workflow updates</span><span class="v">3</span></div>
-        </div>
-        <div style="margin-top:16px;padding:14px;background:var(--surface-soft);border-radius:12px;border:1px solid var(--border)"><div style="font-size:12px;color:var(--text-secondary)">Delivery channels</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><span class="badge badge-valid"><span class="dot"></span>Email</span><span class="badge badge-valid"><span class="dot"></span>In-app</span><span class="badge badge-neutral"><span class="dot"></span>SMS</span></div></div>
-      </div></div>
-    </div>`;
-};
-
-/* ---------- ANALYTICS ---------- */
-VIEWS.analytics = function (c) {
-  c.innerHTML = `${pageHead('Analytics', 'Cross-module reporting for enquiries, revenue and compliance.', `<button class="pill-select">${I.cal}<b>FY 2026–27</b> ${I.chevD}</button><button class="btn btn-primary">${I.export}Export Report</button>`)}
-    <div class="grid dash-grid">
-      ${[['Total Revenue Booked',5240000,'inr','up',12.4],['Reports Issued',1842,'int','up',8.1],['Avg. Turnaround',3.2,'pct','down',6.0],['Compliance Score',86,'pct','up',6.4]].map((k,i)=>`<div class="col-3"><div class="card card-pad kpi hoverlift enter enter-${i+1}"><span class="kpi-label">${k[0]}</span><div class="kpi-val tnum counter" data-target="${k[1]}" data-format="${k[2]}">0</div><span class="delta ${k[3]}">${k[3]==='up'?I.up:I.down}${k[4]}%</span></div></div>`).join('')}
-      <div class="col-8"><div class="card card-pad enter"><div class="card-head"><h3>Revenue vs Collection</h3></div><div id="anChart" style="margin-top:12px"></div></div></div>
-      <div class="col-4"><div class="card card-pad enter"><div class="card-head"><h3>Revenue by Service</h3></div><div style="display:flex;gap:14px;align-items:center;margin-top:8px;flex-wrap:wrap"><div id="anDonut"></div><div class="legend" style="flex:1">${[['Material Testing',38,'var(--primary)'],['Geotechnical',24,'var(--info)'],['NDT',20,'var(--primary-dark)'],['Calibration',12,'var(--warning)'],['Inspection',6,'var(--text-muted)']].map(s=>`<div class="legend-row"><span class="lg-dot" style="background:${s[2]}"></span><span class="lg-name">${s[0]}</span><span class="lg-val">${s[1]}%</span></div>`).join('')}</div></div></div></div>
-    </div>`;
-  requestAnimationFrame(() => {
-    animateCounters(c);
-    areaChart(document.getElementById('anChart'), { labels: DB.months, series: [{ name: 'Revenue booked', values: DB.series['Revenue booked'] }, { name: 'Payment collected', values: DB.series['Payment collected'], color: 'var(--info)' }] }, { height: 300, fmtTip: v => '₹' + v + 'L' });
-    donutChart(document.getElementById('anDonut'), [['Material Testing',38,'var(--primary)'],['Geotechnical',24,'var(--info)'],['NDT',20,'var(--primary-dark)'],['Calibration',12,'var(--warning)'],['Inspection',6,'var(--text-muted)']].map(s => ({ value: s[1], color: s[2] })), { size: 140, stroke: 20, center: '₹52L', centerSub: 'Total' });
-  });
-};
-
-/* ---------- EQUIPMENT ---------- */
-VIEWS.equipment = function (c) {
-  c.innerHTML = `${pageHead('Equipment Calibration', 'Calibration validity and traceability for all laboratory instruments.', `<button class="btn btn-primary">${I.plus}Add Equipment</button>`)}
-    <div class="card enter"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th>Instrument</th><th>Make</th><th>Last Calibration</th><th>Next Due</th><th>Remaining</th><th>Status</th><th></th></tr></thead>
-    <tbody>${DB.equipment.map(e => `<tr><td class="cell-dim tnum">${e.id}</td><td class="cell-strong">${e.name}</td><td class="cell-dim">${e.make}</td><td class="tnum">${e.cal}</td><td class="tnum">${e.due}</td><td class="tnum">${e.days < 0 ? '<span style="color:var(--danger)">Expired</span>' : `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:${dotForDays(e.days)}"></span>${e.days}d</span>`}</td><td>${statusBadge(e.status)}</td><td><div class="row-actions"><button class="mini-act">${I.eye}</button><button class="mini-act">${I.edit}</button></div></td></tr>`).join('')}</tbody></table></div></div>`;
-};
-
-/* ---------- STAFF ---------- */
-VIEWS.staff = function (c) {
-  c.innerHTML = `${pageHead('Staff Credentials', 'Qualification, competency and authorised-signatory credentials.', `<button class="btn btn-primary">${I.plus}Add Staff</button>`)}
-    <div class="grid dash-grid enter">${DB.staff.map(s => `<div class="col-4"><div class="card card-pad hoverlift"><div style="display:flex;gap:12px;align-items:center"><div class="avatar" style="width:44px;height:44px">${s.name.split(' ').map(w=>w[0]).join('')}</div><div><div style="font-weight:600">${s.name}</div><div class="page-desc">${s.role}</div></div></div><div class="kv" style="margin-top:12px"><span class="k">Qualification</span><span class="v">${s.qual}</span></div><div class="kv"><span class="k">Certificate</span><span class="v tnum">${s.cert}</span></div><div class="kv"><span class="k">Validity</span><span class="v tnum">${s.expiry}</span></div><div style="margin-top:10px">${statusBadge(s.status)}</div></div></div>`).join('')}</div>`;
-};
-
-/* ---------- TENDERS ---------- */
-VIEWS.tenders = function (c) {
-  c.innerHTML = `${pageHead('Tenders', 'Live tender opportunities with document readiness tracking.', `<button class="btn btn-primary" onclick="navigate('package')">${I.document}Build Package</button>`)}
-    <div class="grid dash-grid enter">${DB.tenders.map(t => `<div class="col-6"><div class="card card-pad hoverlift"><div style="display:flex;gap:10px"><div class="appr-ico">${I.tender}</div><div style="flex:1"><div class="appr-name">${t.title}</div><div class="appr-auth">${t.client} · ${t.id}</div></div><div style="text-align:right"><div style="font-weight:700" class="tnum">${inr(t.value)}</div><div style="font-size:11px;color:var(--danger)">Due ${t.due}</div></div></div>
-    <div style="display:flex;gap:8px;margin-top:14px;align-items:center"><span class="badge ${t.missing===0?'badge-valid':'badge-expiring'}"><span class="dot"></span>${t.stage}</span><span style="font-size:12px;color:var(--text-secondary)">${t.docs} docs</span>${t.missing?`<span style="font-size:12px;color:var(--danger)">${t.missing} missing</span>`:`<span style="font-size:12px;color:var(--primary-dark)">Complete</span>`}<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="navigate('package')">Prepare ${I.arrowR}</button></div></div></div>`).join('')}</div>`;
-};
-
-/* ---------- ENQUIRIES ---------- */
-VIEWS.enquiries = function (c) {
-  c.innerHTML = `${pageHead('Enquiries', 'All incoming laboratory service enquiries.', `<button class="btn btn-ghost hide-sm">${I.filter}Filter</button><button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Enquiry</button>`)}
-    <div class="filter-bar enter"><div class="filter-search">${I.search}<input placeholder="Search enquiries..."></div><button class="fdrop">Category ${I.chevD}</button><button class="fdrop">Stage ${I.chevD}</button><button class="fdrop">Assigned ${I.chevD}</button></div>
-    <div class="card enter"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>ID</th><th>Customer</th><th>Project</th><th>Service</th><th>Value</th><th>Assigned</th><th>Follow-up</th><th>Stage</th><th></th></tr></thead>
-    <tbody>${DB.pipeline.leads.map(l => `<tr onclick="openLeadDrawer('${l.id}')"><td class="cell-dim tnum">${l.id}</td><td class="cell-strong">${l.cust}</td><td class="cell-dim">${l.proj}</td><td class="cell-dim">${l.cat}</td><td class="tnum">${inr(l.val)}</td><td class="cell-dim">${l.person}</td><td class="cell-dim">${l.follow}</td><td>${statusBadge(l.col==='won'?'won':l.col==='lost'?'lost':l.col==='sent'?'submitted':'review')}</td><td><div class="row-actions"><button class="mini-act">${I.eye}</button></div></td></tr>`).join('')}</tbody></table></div></div>`;
-};
-
-/* ---------- CUSTOMERS ---------- */
-VIEWS.customers = function (c) {
-  const custs = [...new Set(DB.pipeline.leads.map(l => l.cust))].map(name => { const leads = DB.pipeline.leads.filter(l => l.cust === name); return { name, count: leads.length, val: leads.reduce((a, l) => a + l.val, 0), cat: leads[0].cat }; });
-  c.innerHTML = `${pageHead('Customers', 'Government departments, infrastructure companies and industrial clients.', `<button class="btn btn-primary">${I.plus}Add Customer</button>`)}
-    <div class="grid dash-grid enter">${custs.map(cu => `<div class="col-4"><div class="card card-pad hoverlift" style="cursor:pointer"><div style="display:flex;gap:12px;align-items:center"><div class="appr-ico">${I.building}</div><div style="flex:1"><div style="font-weight:600">${cu.name}</div><div class="page-desc">${cu.cat}</div></div></div><div style="display:flex;gap:16px;margin-top:14px"><div><div style="font-size:18px;font-weight:700" class="tnum">${cu.count}</div><div class="page-desc">Enquiries</div></div><div><div style="font-size:18px;font-weight:700" class="tnum">${inr(cu.val)}</div><div class="page-desc">Pipeline value</div></div></div></div></div>`).join('')}</div>`;
-};
-
-/* ---------- QUOTATIONS (rates pulled directly from PTH SOR) ---------- */
-let quoteLines = [];
-VIEWS.quotations = function (c) {
-  const SOR = window.SOR || [];
-  if (!quoteLines.length) quoteLines = [
-    { name: 'Compressive strength of Concrete Cube (Upto M50 Grade)', code: 'IS 516 (Part 1/Sec 1): 2021', qty: 12, rate: 300 },
-    { name: 'Concrete Mix Design', code: 'IS 10262: 2019', qty: 1, rate: 7500 },
-  ];
-  c.innerHTML = `${pageHead('Quotations', 'Build quotations with rates pulled directly from the PTH Schedule of Rates (FY 2026–27).', `<button class="btn btn-ghost hide-sm" onclick="navigate('sor')">${I.rate}View SOR</button><button class="btn btn-primary" onclick="saveQuotation()">${I.plus}Save Quotation</button>`)}
-    <div class="grid dash-grid">
-      <div class="col-8"><div class="card card-pad enter">
-        <div class="card-head"><h3>Quotation Builder</h3><span class="card-sub" style="margin-left:auto">Rates auto-filled from SOR</span></div>
-        <div class="form-grid" style="margin-top:12px"><div class="field"><label>Customer</label><select class="select">${[...new Set(DB.pipeline.leads.map(l=>l.cust))].map(x=>`<option>${x}</option>`).join('')}</select></div><div class="field"><label>Quotation No.</label><input class="input" value="PTH/QTN/2026/0092"></div></div>
-        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
-          <div style="flex:1;min-width:180px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Test category</label><select class="select" id="qCat" onchange="quoteFillTests()">${SOR.map(cat=>`<option value="${cat.id}">${cat.id}. ${esc(cat.name)}</option>`).join('')}</select></div>
-          <div style="flex:2;min-width:220px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Test / service</label><select class="select" id="qTest"></select></div>
-          <button class="btn btn-primary" onclick="quoteAddLine()">${I.plus}Add</button>
-        </div>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Test / Service</th><th>IS Code</th><th>Qty</th><th>Rate (₹)</th><th>Amount</th><th></th></tr></thead><tbody id="quoteBody"></tbody></table></div>
-        <div id="quoteTotals"></div>
-      </div></div>
-      <div class="col-4"><div class="card card-pad enter"><div class="card-head"><h3>Recent Quotations</h3></div>
-        <div style="margin-top:8px">${[['PTH/QTN/2026/0091','L&T Construction','submitted'],['PTH/QTN/2026/0090','Adani Infra','review'],['PTH/QTN/2026/0089','Gujarat Metro','won'],['PTH/QTN/2026/0088','Reliance','submitted']].map(q=>`<div class="appr-item"><div class="appr-main"><div class="appr-name tnum" style="font-size:12px">${q[0]}</div><div class="appr-auth">${q[1]}</div></div>${statusBadge(q[2])}</div>`).join('')}</div>
-      </div></div>
-    </div>`;
-  quoteFillTests();
-  renderQuoteLines();
-};
-function saveQuotation() {
-  const sub = quoteLines.reduce((a, l) => a + (l.onReq ? 0 : l.qty * l.rate), 0);
-  const total = Math.round(sub * 1.18);
-  const num = 'PTH/QTN/2026/' + String(92 + (DB.quotations ? DB.quotations.length : 0)).padStart(4, '0');
-  (DB.quotations = DB.quotations || []).unshift({
-    id: num, date: nowStamp().slice(0, 10), lines: quoteLines.map(l => ({ ...l })),
-    subtotal: sub, total, status: 'submitted', by: DB.user.name,
-  });
-  Store.save();
-  toast('Quotation saved', `${num} · ₹${total.toLocaleString('en-IN')} incl. GST`);
-  logAudit('Create', 'Quotations', `Quotation ${num} saved — ${quoteLines.length} tests, ₹${total.toLocaleString('en-IN')} incl. GST`);
-}
+async function downloadQuotationPdf(q,blob){const pdfBlob=blob||await generateQuotationPdfBlob(q),link=document.createElement('a');link.href=URL.createObjectURL(pdfBlob);link.download=`${q.number.replace(/\//g,'-')}.pdf`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);return link.download;}
+async function shareQuotationPdf(number,channel){ const q=quotationForShare(number),blob=await generateQuotationPdfBlob(q),filename=`${q.number.replace(/\//g,'-')}.pdf`,file=new File([blob],filename,{type:'application/pdf'}),message=formalQuotationMessage(q); try{if(navigator.canShare?.({files:[file]})){await navigator.share({title:`Quotation ${q.number}`,text:message,files:[file]});closeModal();toast('Quotation shared',`${filename} attached successfully`);logAudit('Share','Quotations',`${q.number} shared with PDF`);return;}}catch(error){if(error.name==='AbortError')return;} await downloadQuotationPdf(q,blob); toast('PDF downloaded',`Attach ${filename} in the prepared ${channel==='email'?'email':'WhatsApp message'}.`,'info'); if(channel==='email')emailQuotation(number,message);else whatsappQuotation(number,message); }
+function openQuotationSend(number,fromBuilder=false){ const q=quotationForShare(number); openModal(`<div class="modal-head"><div class="modal-title">Share PDF Quotation</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="kv"><span class="k">Quotation</span><span class="v tnum">${esc(q.number)}</span></div><div class="kv"><span class="k">Client</span><span class="v">${esc(q.customer)}</span></div><div class="field" style="margin-top:14px"><label>Email address</label><input class="input" id="quoteSendEmail" type="email" placeholder="customer@example.com"></div><div class="field"><label>WhatsApp number with country code</label><input class="input" id="quoteSendPhone" placeholder="919876543210"></div><div class="quotation-message-preview"><strong>Formal submission message</strong><div>${esc(formalQuotationMessage(q)).replace(/\n/g,'<br>')}</div></div><div class="page-desc" style="margin-top:10px">On supported devices, Email/WhatsApp uses secure file sharing with the PDF attached. Otherwise the PDF downloads first and a prepared message opens for manual attachment.</div></div><div class="modal-foot" style="flex-wrap:wrap"><button class="btn btn-ghost" onclick="downloadQuotationPdf(quotationForShare('${esc(q.number)}'))">${I.export}Download PDF</button><button class="btn btn-ghost" onclick="shareQuotationPdf('${esc(q.number)}','email')">${I.enquiry}Email with PDF</button><button class="btn btn-primary" onclick="shareQuotationPdf('${esc(q.number)}','whatsapp')">WhatsApp with PDF</button></div>`); }
+function gmailComposeUrl(email,subject,message){const params=new URLSearchParams({view:'cm',fs:'1',to:email,su:subject,body:message});return `https://mail.google.com/mail/?${params.toString()}`;}
+function emailQuotation(number,message=formalQuotationMessage(quotationForShare(number))){ const q=quotationForShare(number),email=document.getElementById('quoteSendEmail')?.value.trim()||''; if(!email){toast('Email required','Enter the recipient email address.','err');return;} const subject=`Submission of Quotation ${q.number} - ${DB.brand.company}`;window.open(gmailComposeUrl(email,subject,message),'_blank','noopener');toast('Gmail opened','Attach the downloaded quotation PDF, review the message, and click Send.','info'); }
+function whatsappQuotation(number,message=formalQuotationMessage(quotationForShare(number))){ const phone=(document.getElementById('quoteSendPhone')?.value||'').replace(/\D/g,''); if(phone.length<10){toast('Valid WhatsApp number required','Enter number with country code.','err');return;} window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank','noopener'); }
 function quoteFillTests() {
   const SOR = window.SOR || [];
   const catId = +document.getElementById('qCat').value;
   const cat = SOR.find(c => c.id === catId);
   const sel = document.getElementById('qTest');
-  sel.innerHTML = (cat ? cat.tests : []).map((t, i) => `<option value="${i}">${esc(t.name)} — ${t.rate != null ? '₹' + t.rate : t.rateText}</option>`).join('');
+  const combos = cat ? quoteComboOptions(cat) : [];
+  sel.innerHTML = cat ? `${combos.map((combo,i)=>`<option value="combo:${i}">FULL COMBO: ${esc(combo.label)} — ₹${combo.rate.toLocaleString('en-IN')} (${combo.tests.length} parameters)</option>`).join('')}${cat.tests.map((t,i)=>`<option value="test:${i}">${esc(t.name)} — ${esc(sorRateText(t))}</option>`).join('')}` : '';
 }
 function quoteAddLine() {
   const SOR = window.SOR || [];
   const cat = SOR.find(c => c.id === +document.getElementById('qCat').value);
-  const t = cat.tests[+document.getElementById('qTest').value];
-  quoteLines.push({ name: t.name, code: t.code, qty: 1, rate: t.rate != null ? t.rate : 0, onReq: t.rate == null });
+  const selection = document.getElementById('qTest').value;
+  const [kind,index] = selection.split(':');
+  let t, parameters = [];
+  if (kind === 'combo') {
+    const combo = quoteComboOptions(cat)[+index];
+    parameters = combo.tests.map(test => test.name);
+    t = { name:`Full Combo Test — ${combo.label}`, code:combo.code, rate:combo.rate, rateText:String(combo.rate) };
+  } else t = cat.tests[+index];
+  quoteLines.push({ category:cat.name, name:t.name, parameters, code:t.code, qty:1, unit:'Sample', rate:t.rate!=null?t.rate:0, sorRate:t.rate!=null?t.rate:null, rateText:t.rateText, onReq:t.rate==null, disc:t.rate!=null?quoteDiscountPct:0 });
   renderQuoteLines();
-  toast('Line added', `${t.name} · ${t.rate != null ? '₹' + t.rate : 'rate on request'}`, 'info');
+  updateQuotationHeading();
+  toast('Line added', `${t.name} · ${sorRateText(t)} excl. GST`, 'info');
+}
+function openCustomQuoteLine() {
+  openModal(`<div class="modal-head"><div class="modal-title">Add Custom Service (Out of SOR)</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Custom category</label><input class="input" id="qcCategory" value="Additional Services"></div><div class="field"><label>Service description <span class="req">*</span></label><input class="input" id="qcName" placeholder="e.g. Special site visit and engineering assessment"></div><div class="form-grid"><div class="field"><label>Reference / specification</label><input class="input" id="qcCode" placeholder="Client specification"></div><div class="field"><label>Quantity</label><input class="input" id="qcQty" type="number" min="1" value="1"></div></div><div class="field"><label>Rate excluding GST <span style="font-weight:400;color:var(--text-muted)">— leave blank for On request</span></label><input class="input" id="qcRate" type="number" min="0" placeholder="₹"></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="addCustomQuoteLine()">${I.plus}Add Service</button></div>`);
+}
+function addCustomQuoteLine() {
+  const name = document.getElementById('qcName').value.trim();
+  if (!name) { toast('Service description required', 'Enter the out-of-SOR service name.', 'err'); return; }
+  const rate = Math.max(0,+document.getElementById('qcRate').value||0), onReq = !rate;
+  quoteLines.push({ category:document.getElementById('qcCategory').value.trim()||'Additional Services', name, parameters:[], code:document.getElementById('qcCode').value.trim(), qty:Math.max(1,+document.getElementById('qcQty').value||1), unit:'Sample', rate, rateText:onReq?'On request':String(rate), onReq, disc:onReq?0:quoteDiscountPct, custom:true });
+  closeModal(); renderQuoteLines(); updateQuotationHeading(); toast('Custom service added', `${name} · Out of SOR`, 'info');
+}
+function quoteAddFullSOR() {
+  const SOR = window.SOR || [];
+  const total = SOR.reduce((a, c) => a + (c.tests ? c.tests.length : 0), 0);
+  if (!total) { toast('SOR unavailable', 'No Schedule of Rates tests are loaded.', 'err'); return; }
+  openModal(`<div class="modal-head"><div class="modal-title">Add Full Schedule of Rates</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body"><p>Add <b>${total} tests</b> from <b>${SOR.length} categories</b> to this quotation, each with quantity <b>1</b>.</p><p class="page-desc" style="margin-top:8px">Existing line items are kept and any duplicates are skipped. Rates are auto-filled from the SOR; you can edit quantity, rate and discount per line afterwards.</p></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="closeModal();confirmAddFullSOR()">${I.plus}Add All ${total} Tests</button></div>`);
+}
+function confirmAddFullSOR() {
+  const SOR = window.SOR || [];
+  const kk = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const lineKey = l => `${kk(l.category)}|${kk(l.name)}|${kk(l.code)}`;
+  const existing = new Set(quoteLines.map(lineKey));
+  let added = 0;
+  SOR.forEach(cat => (cat.tests || []).forEach(t => {
+    const line = { category: cat.name, name: t.name, parameters: [], code: t.code, qty: 1, unit: 'Sample', rate: t.rate != null ? t.rate : 0, rateText: t.rateText, onReq: t.rate == null, disc: t.rate != null ? quoteDiscountPct : 0 };
+    const key = lineKey(line);
+    if (existing.has(key)) return;
+    existing.add(key); quoteLines.push(line); added += 1;
+  }));
+  renderQuoteLines(); updateQuotationHeading();
+  toast(added ? 'Full SOR added' : 'Nothing to add', added ? `${added} test${added === 1 ? '' : 's'} added with quantity 1` : 'All SOR tests are already in the quotation.', added ? 'ok' : 'info');
+  if (added) logAudit('Create', 'Quotations', `Full SOR added to quotation (${added} tests)`);
+}
+function setQuoteDiscount(value) { quoteDiscountPct = Math.min(100,Math.max(0,+value||0)); quoteLines.forEach(l => { if (!l.onReq) l.disc = quoteDiscountPct; }); renderQuoteLines(); }
+function quoteSetLineRate(i, value) {
+  const l = quoteLines[i]; if (!l) return;
+  const v = Math.max(0, +value || 0);
+  if (v > 0) { l.rate = v; l.rateText = String(v); l.onReq = false; }
+  else { l.rate = 0; l.rateText = 'On request'; l.onReq = true; l.disc = 0; }
+  renderQuoteLines();
+}
+function quoteSetLineDiscount(i, value) {
+  const l = quoteLines[i]; if (!l) return;
+  l.disc = Math.min(100, Math.max(0, +value || 0));
+  renderQuoteLines();
+}
+function quoteApplyTermsTemplate(key) {
+  quoteTermsKey = key in QUOTE_TERMS ? key : 'general'; quoteTermsText = QUOTE_TERMS[quoteTermsKey];
+  const field=document.getElementById('qTermsText'); if(field) field.value=quoteTermsText;
+  const terms=document.querySelector('.quote-terms-text'); if(terms) terms.innerHTML=esc(quoteTermsText).replace(/\n/g,'<br>');
+  const label=document.querySelector('.quote-terms .card-sub'); if(label) label.textContent=quoteTermsKey.toUpperCase()+' template';
+}
+function updateQuoteTermsText(value) {
+  quoteTermsText = value;
+  const terms=document.querySelector('.quote-terms-text'); if(terms) terms.innerHTML=esc(quoteTermsText).replace(/\n/g,'<br>');
+}
+function calculateQuoteTotals() {
+  const gross=quoteLines.reduce((a,l)=>a+(l.onReq?0:l.qty*l.rate),0);
+  const discount=quoteLines.reduce((a,l)=>a+(l.onReq?0:Math.round(l.qty*l.rate*(l.disc||0)/100)),0);
+  const net=gross-discount, gst=Math.round(net*.18);
+  return { gross,discount,net,gst,total:net+gst };
 }
 function renderQuoteLines() {
   const body = document.getElementById('quoteBody'); if (!body) return;
-  body.innerHTML = quoteLines.length ? quoteLines.map((l, i) => `
+  const head = document.getElementById('quoteHead');
+  if (head) head.innerHTML = `<tr>
+    <th style="width:46px">Sr. No.</th>
+    <th>Description (Category and Service)</th>
+    <th class="q-center" style="width:58px">Qty</th>
+    <th class="q-center" style="width:84px">Unit</th>
+    <th class="q-num" style="width:100px">Rate (₹)</th>
+    <th class="q-num" style="width:96px">Discount %</th>
+    <th class="q-num" style="width:104px">Amount</th>
+    <th style="width:40px"></th>
+  </tr>`;
+  const inS = 'padding:5px 7px;border:1px solid var(--border);border-radius:8px;background:var(--surface-soft);font-size:13px';
+  body.innerHTML = quoteLines.length ? quoteLines.map((l, i) => {
+    const gross = l.onReq ? 0 : l.qty * l.rate;
+    const disc = Math.round(gross * (l.disc || 0) / 100);
+    const amount = gross - disc;
+    return `
     <tr>
-      <td class="cell-strong">${esc(l.name)}</td>
-      <td class="cell-dim">${esc(l.code || '—')}</td>
-      <td><input type="number" min="1" value="${l.qty}" onchange="quoteLines[${i}].qty=Math.max(1,+this.value||1);renderQuoteLines()" style="width:56px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-soft);font-size:13px" class="tnum"></td>
-      <td class="tnum">${l.onReq ? '<span style="color:var(--text-muted)">On request</span>' : '₹' + l.rate}</td>
-      <td class="tnum cell-strong">${l.onReq ? '—' : '₹' + (l.qty * l.rate).toLocaleString('en-IN')}</td>
-      <td><button class="mini-act" onclick="quoteLines.splice(${i},1);renderQuoteLines()" title="Remove">${I.x}</button></td>
-    </tr>`).join('') : `<tr><td colspan="6"><div class="empty" style="padding:26px"><div class="empty-ico">${I.rate}</div><h4>No line items</h4><p>Pick a category and test above, then Add</p></div></td></tr>`;
-  const sub = quoteLines.reduce((a, l) => a + (l.onReq ? 0 : l.qty * l.rate), 0);
-  const gst = Math.round(sub * 0.18), total = sub + gst;
-  document.getElementById('quoteTotals').innerHTML = `<div style="display:flex;justify-content:flex-end;gap:26px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)"><div><div class="page-desc">Subtotal</div><div style="font-weight:700" class="tnum">₹${sub.toLocaleString('en-IN')}</div></div><div><div class="page-desc">GST 18%</div><div style="font-weight:700" class="tnum">₹${gst.toLocaleString('en-IN')}</div></div><div><div class="page-desc">Total</div><div style="font-weight:700;font-size:18px;color:var(--primary-dark)" class="tnum">₹${total.toLocaleString('en-IN')}</div></div></div>`;
+      <td class="tnum cell-dim">${i+1}</td>
+      <td><div class="quote-description-category">${esc(l.category || 'Uncategorised')}</div><div class="cell-strong">${esc(l.name)}</div>${l.code?`<div class="quote-description-code">Reference: ${esc(l.code)}</div>`:''}${l.parameters?.length?`<div class="quote-params">(${l.parameters.map(esc).join('; ')})</div>`:''}${l.custom?'<div class="quote-custom-tag">Out of SOR</div>':''}</td>
+      <td class="q-center"><input type="number" min="1" value="${l.qty}" onchange="quoteLines[${i}].qty=Math.max(1,+this.value||1);renderQuoteLines()" style="width:48px;${inS};text-align:center" class="tnum"></td>
+      <td class="q-center"><input type="text" value="${esc(l.unit || 'Sample')}" onchange="quoteLines[${i}].unit=this.value.trim()||'Sample';renderQuoteLines()" style="width:74px;${inS};text-align:center"></td>
+      <td class="q-num"><input type="number" min="0" step="1" value="${l.onReq ? '' : l.rate}" placeholder="On request" onchange="quoteSetLineRate(${i},this.value)" title="Enter a rate, or leave blank for On request" style="width:86px;${inS};text-align:right" class="tnum"></td>
+      <td class="q-num"><input type="number" min="0" max="100" step="0.5" value="${l.disc || 0}" ${l.onReq ? 'disabled' : ''} onchange="quoteSetLineDiscount(${i},this.value)" title="Discount % for this line" style="width:60px;${inS};text-align:right;${l.onReq?'opacity:.5':''}" class="tnum"></td>
+      <td class="tnum q-num cell-strong">${l.onReq ? '—' : '₹' + amount.toLocaleString('en-IN')}${disc>0?`<div class="quote-line-discount"><small>− ₹${disc.toLocaleString('en-IN')}</small></div>`:''}</td>
+      <td><button class="mini-act" onclick="quoteLines.splice(${i},1);renderQuoteLines();updateQuotationHeading()" title="Remove">${I.x}</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8"><div class="empty" style="padding:26px"><div class="empty-ico">${I.rate}</div><h4>No line items</h4><p>Pick a category and test above, then Add</p></div></td></tr>`;
+  const {gross,discount,net,gst,total}=calculateQuoteTotals();
+  document.getElementById('quoteTotals').innerHTML = `<div class="quote-totals"><div><div class="page-desc">Subtotal (excl. GST)</div><div class="tnum quote-total-val">₹${gross.toLocaleString('en-IN')}</div></div>${discount>0?`<div class="quote-discount"><div class="page-desc">Discount</div><div class="tnum quote-total-val">− ₹${discount.toLocaleString('en-IN')}</div></div><div><div class="page-desc">Taxable value</div><div class="tnum quote-total-val">₹${net.toLocaleString('en-IN')}</div></div>`:''}<div><div class="page-desc">GST 18% (extra)</div><div class="tnum quote-total-val">₹${gst.toLocaleString('en-IN')}</div></div><div><div class="page-desc">Grand Total (incl. GST)</div><div class="tnum quote-grand-total">₹${total.toLocaleString('en-IN')}</div></div></div>`;
 }
 
 /* ---------- SCHEDULE OF RATES (browsable catalog from PTH SOR) ---------- */
+/* ---------- SCHEDULE OF RATES — master data store ---------- */
+const SOR_KEY = 'pth_sor_v1';
+// Snapshot the pristine SOR shipped in sor.js BEFORE applying any saved overrides, so Reset works.
+window.SOR_DEFAULT = window.SOR_DEFAULT || JSON.parse(JSON.stringify(window.SOR || []));
+(function loadSOR() { try { const s = JSON.parse(localStorage.getItem(SOR_KEY)); if (Array.isArray(s)) window.SOR = s; } catch (e) {} })();
+function persistSOR() { try { localStorage.setItem(SOR_KEY, JSON.stringify(window.SOR || [])); } catch (e) {} }
+function sorCat(id) { return (window.SOR || []).find(c => c.id === +id); }
+function sorStats() {
+  const S = window.SOR || [], tests = S.flatMap(c => c.tests || []);
+  const priced = tests.filter(t => t.rate != null);
+  const packages = S.reduce((a, c) => a + ((c.combos ? c.combos.length : 0) + (c.packageRate ? 1 : 0)), 0);
+  const avg = priced.length ? Math.round(priced.reduce((a, t) => a + t.rate, 0) / priced.length) : 0;
+  return { cats: S.length, tests: tests.length, priced: priced.length, onReq: tests.length - priced.length, packages, avg };
+}
+function refreshSOR() { const s = document.getElementById('sorSearch'); if (s && state.route === 'sor') VIEWS.sor(document.getElementById('canvas')); }
 VIEWS.sor = function (c) {
   const SOR = window.SOR || [];
-  const totalTests = SOR.reduce((a, cat) => a + cat.tests.length, 0);
-  c.innerHTML = `${pageHead('Schedule of Rates', `${DB.brand.company} · FY 2026–27 — ${totalTests} accredited tests across ${SOR.length} categories. Rates flow directly into quotations.`, `<button class="btn btn-ghost hide-sm">${I.export}Export SOR</button><button class="btn btn-primary" onclick="navigate('quotations')">${I.quote}New Quotation</button>`)}
-    <div class="filter-bar enter">
-      <div class="filter-search">${I.search}<input placeholder="Search 310 tests by name or IS code..." id="sorSearch" oninput="renderSOR(this.value)"></div>
-      <select class="fdrop" id="sorCat" onchange="renderSOR(document.getElementById('sorSearch').value)" style="min-width:200px"><option value="">All categories</option>${SOR.map(cat => `<option value="${cat.id}">${cat.id}. ${esc(cat.name)}</option>`).join('')}</select>
+  const st = sorStats();
+  const actions = `<button class="btn btn-ghost hide-sm" onclick="openDataImport('sor')">${I.upload}Import Excel</button><button class="btn btn-ghost hide-sm" onclick="exportSOR()">${I.export}Export</button><button class="btn btn-ghost" onclick="openSorCategoryModal()">${I.plus}Add Category</button><button class="btn btn-primary" onclick="startNewQuotation()">${I.quote}New Quotation</button>`;
+  c.innerHTML = `${pageHead('Schedule of Rates', `${DB.brand.company} · FY ${window.SOR_META?.financialYear || '2026-27'} — master test rate list. All rates exclude GST; ${window.SOR_META?.gstRate || 18}% GST is added extra.`, actions)}
+    <div class="stat-strip enter" style="margin-bottom:16px">
+      <div class="stat-chip"><div class="sc-val tnum">${st.cats}</div><div class="sc-label">Categories</div></div>
+      <div class="stat-chip"><div class="sc-val tnum">${st.tests}</div><div class="sc-label">Total tests</div></div>
+      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--primary-dark)">${st.priced}</div><div class="sc-label"><span class="dot" style="background:var(--primary-dark)"></span>Priced</div></div>
+      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--text-muted)">${st.onReq}</div><div class="sc-label"><span class="dot" style="background:var(--text-muted)"></span>On request</div></div>
+      <div class="stat-chip"><div class="sc-val tnum">${st.packages}</div><div class="sc-label">Packages</div></div>
+      <div class="stat-chip"><div class="sc-val tnum">${inr(st.avg)}</div><div class="sc-label">Avg. rate</div></div>
     </div>
+    <div class="filter-bar enter">
+      <div class="filter-search">${I.search}<input placeholder="Search ${st.tests} tests by name, IS code or category..." id="sorSearch" value="${esc(sorSearchTerm)}" oninput="renderSOR(this.value)"></div>
+      <select class="fdrop" id="sorCat" onchange="renderSOR(document.getElementById('sorSearch').value)" style="min-width:200px"><option value="">All categories</option>${SOR.map(cat => `<option value="${cat.id}" ${sorCatFilter == cat.id ? 'selected' : ''}>${cat.id}. ${esc(cat.name)}</option>`).join('')}</select>
+      <button class="btn btn-ghost btn-sm hide-sm" onclick="resetSOR()" title="Restore the approved default rates">Reset to default</button>
+    </div>
+    <div id="sorCount" class="page-desc enter" style="margin:2px 2px 12px"></div>
     <div id="sorList" class="enter"></div>`;
-  renderSOR('');
+  renderSOR(sorSearchTerm);
 };
+let sorSearchTerm = '';
+let sorCatFilter = '';
 function renderSOR(q) {
   const SOR = window.SOR || [];
   const list = document.getElementById('sorList'); if (!list) return;
-  const catFilter = document.getElementById('sorCat').value;
-  q = (q || '').toLowerCase();
-  let cats = SOR.filter(cat => !catFilter || cat.id === +catFilter);
-  let html = '';
+  sorCatFilter = document.getElementById('sorCat')?.value || '';
+  sorSearchTerm = q || '';
+  const term = (q || '').toLowerCase();
+  const cats = SOR.filter(cat => !sorCatFilter || cat.id === +sorCatFilter);
+  let html = '', shownTests = 0, shownCats = 0;
   cats.forEach(cat => {
-    const tests = cat.tests.filter(t => !q || (t.name + ' ' + t.code).toLowerCase().includes(q));
+    const tests = (cat.tests || []).filter(t => !term || (t.name + ' ' + (t.code || '') + ' ' + (t.qty || '') + ' ' + cat.name).toLowerCase().includes(term));
     if (!tests.length) return;
+    shownTests += tests.length; shownCats += 1;
+    const packages = quoteComboOptions(cat);
     html += `<div class="card enter" style="margin-bottom:14px">
-      <div class="card-pad card-head" style="gap:10px"><span class="badge badge-neutral"><span class="dot" style="background:var(--brand)"></span>${cat.id}</span><h3 style="font-size:14.5px">${esc(cat.name)}</h3><span class="card-sub" style="margin-left:auto">${tests.length} tests</span></div>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:60px">Sr.</th><th>Name of Test</th><th>IS Code Reference</th><th>Sample Qty</th><th style="text-align:right">Rate (₹)</th><th style="width:70px"></th></tr></thead>
-      <tbody>${tests.map((t, i) => `<tr>
+      <div class="card-pad card-head" style="gap:10px;flex-wrap:wrap"><span class="badge badge-neutral"><span class="dot" style="background:var(--brand)"></span>${cat.id}</span><h3 style="font-size:14.5px">${esc(cat.name)}</h3><span class="card-sub">${tests.length} test${tests.length === 1 ? '' : 's'}</span>
+        <div class="row-actions" style="margin-left:auto">
+          <button class="btn btn-ghost btn-sm" onclick="sorAddCategoryToQuote(${cat.id})" title="Add all tests to quotation">${I.quote}Add all</button>
+          <button class="mini-act" onclick="openSorTestModal(${cat.id})" title="Add test">${I.plus}</button>
+          <button class="mini-act" onclick="openSorCategoryModal(${cat.id})" title="Edit category">${I.edit}</button>
+          <button class="mini-act" onclick="deleteSorCategory(${cat.id})" title="Delete category">${I.x}</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:52px">Sr.</th><th>Name of Test</th><th>IS Code Reference</th><th>Sample Qty</th><th style="text-align:right">Rate (₹, excl. GST)</th><th style="width:118px"></th></tr></thead>
+      <tbody>${tests.map((t, i) => { const idx = cat.tests.indexOf(t); return `<tr>
         <td class="cell-dim tnum">${i + 1}</td>
         <td class="cell-strong">${esc(t.name)}</td>
         <td class="cell-dim">${esc(t.code || '—')}</td>
         <td class="cell-dim">${esc(t.qty || '—')}</td>
-        <td class="tnum cell-strong" style="text-align:right">${t.rate != null ? '₹' + t.rate.toLocaleString('en-IN') : '<span style="color:var(--text-muted);font-weight:500">' + esc(t.rateText) + '</span>'}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="quoteLines.push({name:${JSON.stringify(t.name)},code:${JSON.stringify(t.code)},qty:1,rate:${t.rate || 0},onReq:${t.rate == null}});toast('Added to quotation',${JSON.stringify(t.name)},'ok')">${I.plus}</button></td>
-      </tr>`).join('')}</tbody></table></div>
-      ${cat.combos && cat.combos.length ? `<div class="card-pad" style="border-top:1px solid var(--border)">${cat.combos.map(cm => `<div style="font-size:12px;color:var(--primary-dark);display:flex;gap:6px;align-items:center">${I.info}${esc(cm)}</div>`).join('')}</div>` : ''}
+        <td class="tnum cell-strong" style="text-align:right">${t.rate != null ? esc(sorRateText(t)) : `<span style="color:var(--text-muted);font-weight:500">${esc(t.rateText || 'On request')}</span>`}</td>
+        <td onclick="event.stopPropagation()"><div class="row-actions"><button class="mini-act" onclick="sorAddTestToQuote(${cat.id},${idx})" title="Add to quotation">${I.plus}</button><button class="mini-act" onclick="openSorTestModal(${cat.id},${idx})" title="Edit">${I.edit}</button><button class="mini-act" onclick="deleteSorTest(${cat.id},${idx})" title="Delete">${I.x}</button></div></td>
+      </tr>`; }).join('')}</tbody></table></div>
+      ${packages.length ? `<div class="card-pad sor-combos">${packages.map((p, pi) => `<div class="sor-combo"><span class="sor-combo-icon">${I.info}</span><span><b>${esc(p.label)}</b> — ₹${p.rate.toLocaleString('en-IN')} · ${p.tests.length} tests</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="sorAddComboToQuote(${cat.id},${pi})">${I.quote}Add package</button></div>`).join('')}</div>` : ''}
     </div>`;
   });
   list.innerHTML = html || `<div class="empty"><div class="empty-ico">${I.search}</div><h4>No tests found</h4><p>Try a different search or category</p></div>`;
+  const count = document.getElementById('sorCount');
+  if (count) count.textContent = html ? `Showing ${shownTests} test${shownTests === 1 ? '' : 's'} across ${shownCats} categor${shownCats === 1 ? 'y' : 'ies'}${term || sorCatFilter ? ' (filtered)' : ''}` : '';
+}
+/* ---------- SOR — add to quotation ---------- */
+function sorAddTestToQuote(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  quoteLines.push({ category: cat.name, name: t.name, parameters: [], code: t.code || '', qty: 1, unit: 'Sample', rate: t.rate != null ? t.rate : 0, sorRate:t.rate!=null?t.rate:null, rateText: t.rateText, onReq: t.rate == null, disc: t.rate != null ? quoteDiscountPct : 0 });
+  toast('Added to quotation', `${t.name} · ${sorRateText(t)}`, 'ok');
+}
+function sorAddCategoryToQuote(catId) {
+  const cat = sorCat(catId); if (!cat) return;
+  cat.tests.forEach(t => quoteLines.push({ category: cat.name, name: t.name, parameters: [], code: t.code || '', qty: 1, unit: 'Sample', rate: t.rate != null ? t.rate : 0, sorRate:t.rate!=null?t.rate:null, rateText: t.rateText, onReq: t.rate == null, disc: t.rate != null ? quoteDiscountPct : 0 }));
+  toast('Category added', `${cat.tests.length} tests from ${cat.name} added to quotation`, 'ok');
+  logAudit('Create', 'Quotations', `Added SOR category "${cat.name}" (${cat.tests.length} tests) to quotation`);
+}
+function sorAddComboToQuote(catId, comboIdx) {
+  const cat = sorCat(catId); if (!cat) return; const combo = quoteComboOptions(cat)[comboIdx]; if (!combo) return;
+  quoteLines.push({ category: cat.name, name: `Package — ${combo.label}`, parameters: combo.tests.map(t => t.name), code: combo.code, qty: 1, unit: 'Package', rate: combo.rate, sorRate:combo.rate, rateText: String(combo.rate), onReq: false, disc: quoteDiscountPct });
+  toast('Package added', `${combo.label} · ₹${combo.rate.toLocaleString('en-IN')}`, 'ok');
+}
+/* ---------- SOR — test CRUD ---------- */
+function openSorTestModal(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return;
+  const editing = idx != null && idx >= 0, t = editing ? cat.tests[idx] : { name: '', code: '', qty: '', rate: 0, rateText: '' };
+  const onReq = t.rate == null;
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Test' : 'Add Test'} — ${esc(cat.name)}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="field" id="st-name"><label>Name of Test <span class="req">*</span></label><input class="input" id="stName" value="${esc(t.name)}" placeholder="e.g. Compressive Strength"><div class="field-err">${I.info}Test name is required</div></div>
+      <div class="form-grid"><div class="field"><label>IS Code Reference</label><input class="input" id="stCode" value="${esc(t.code || '')}" placeholder="e.g. IS 516"></div><div class="field"><label>Sample Quantity</label><input class="input" id="stQty" value="${esc(t.qty || '')}" placeholder="e.g. 3 Nos."></div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
+        <span class="toggle ${onReq ? 'on' : ''}" id="stOnReq" onclick="this.classList.toggle('on');const on=this.classList.contains('on');document.getElementById('stRate').disabled=on;document.getElementById('stRate').style.opacity=on?'.5':'1';document.getElementById('st-onreqtext').style.display=on?'block':'none'"></span>
+        <div><div style="font-size:13px;font-weight:600">On request (no fixed rate)</div><div style="font-size:11.5px;color:var(--text-secondary)">Use for tests quoted case-by-case or bundled in a package</div></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Rate excluding GST (₹)</label><input class="input tnum" id="stRate" type="number" min="0" value="${t.rate != null ? t.rate : ''}" ${onReq ? 'disabled style="opacity:.5"' : ''}></div>
+      <div class="field" id="st-onreqtext" style="display:${onReq ? 'block' : 'none'}"><label>On-request label</label><input class="input" id="stRateText" value="${esc(onReq ? (t.rateText || 'On request') : '')}" placeholder="e.g. On request / Included in package"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorTest(${cat.id},${editing ? idx : -1})">${I.check}${editing ? 'Save Changes' : 'Add Test'}</button></div>`);
+}
+function saveSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return;
+  const name = document.getElementById('stName').value.trim();
+  if (!name) { const f = document.getElementById('st-name'); f.classList.add('show-err'); const i = f.querySelector('.input'); i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 350); return; }
+  const onReq = document.getElementById('stOnReq').classList.contains('on');
+  const rate = onReq ? null : Math.max(0, +document.getElementById('stRate').value || 0);
+  const rec = { name, code: document.getElementById('stCode').value.trim(), qty: document.getElementById('stQty').value.trim(), rate, rateText: onReq ? (document.getElementById('stRateText').value.trim() || 'On request') : String(rate) };
+  if (idx >= 0) { cat.tests[idx] = rec; logAudit('Edit', 'Schedule of Rates', `Updated "${name}" in ${cat.name}`); }
+  else { cat.tests.push(rec); logAudit('Create', 'Schedule of Rates', `Added "${name}" to ${cat.name}`); }
+  persistSOR(); closeModal(); toast(idx >= 0 ? 'Test updated' : 'Test added', `${name} · ${onReq ? 'On request' : '₹' + rate.toLocaleString('en-IN')}`); refreshSOR();
+}
+function deleteSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Delete Test</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(t.name)}</b> from ${esc(cat.name)}? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteSorTest(${cat.id},${idx})">Delete</button></div>`);
+}
+function confirmDeleteSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  cat.tests.splice(idx, 1); persistSOR(); closeModal(); toast('Test deleted', t.name, 'info'); logAudit('Delete', 'Schedule of Rates', `Deleted "${t.name}" from ${cat.name}`); refreshSOR();
+}
+/* ---------- SOR — category CRUD ---------- */
+function openSorCategoryModal(catId) {
+  const editing = catId != null, cat = editing ? sorCat(catId) : null;
+  const nextId = Math.max(0, ...(window.SOR || []).map(c => c.id)) + 1;
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Category' : 'Add Category'}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="form-grid"><div class="field"><label>Category No.</label><input class="input tnum" id="scId" type="number" min="1" value="${editing ? cat.id : nextId}" ${editing ? 'readonly' : ''}></div><div class="field"></div></div>
+      <div class="field" id="sc-name"><label>Category Name <span class="req">*</span></label><input class="input" id="scName" value="${editing ? esc(cat.name) : ''}" placeholder="e.g. CONCRETE & CEMENT TESTING"><div class="field-err">${I.info}Category name is required</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorCategory(${editing ? cat.id : 'null'})">${I.check}${editing ? 'Save Changes' : 'Add Category'}</button></div>`);
+}
+function saveSorCategory(catId) {
+  const name = document.getElementById('scName').value.trim();
+  if (!name) { const f = document.getElementById('sc-name'); f.classList.add('show-err'); const i = f.querySelector('.input'); i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 350); return; }
+  if (catId != null) { const cat = sorCat(catId); if (cat) { cat.name = name; logAudit('Edit', 'Schedule of Rates', `Renamed category to "${name}"`); } }
+  else {
+    const id = Math.max(1, +document.getElementById('scId').value || (Math.max(0, ...(window.SOR || []).map(c => c.id)) + 1));
+    if (sorCat(id)) { toast('Category exists', `Category ${id} already exists.`, 'err'); return; }
+    window.SOR.push({ id, name, combos: [], tests: [] }); window.SOR.sort((a, b) => a.id - b.id);
+    logAudit('Create', 'Schedule of Rates', `Added category "${name}"`);
+  }
+  persistSOR(); closeModal(); toast(catId != null ? 'Category updated' : 'Category added', name); sorCatFilter = ''; refreshSOR();
+}
+function deleteSorCategory(catId) {
+  const cat = sorCat(catId); if (!cat) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Delete Category</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(cat.name)}</b> and its <b>${cat.tests.length} test${cat.tests.length === 1 ? '' : 's'}</b>? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteSorCategory(${cat.id})">Delete</button></div>`);
+}
+function confirmDeleteSorCategory(catId) {
+  const i = (window.SOR || []).findIndex(c => c.id === +catId); if (i < 0) return;
+  const cat = window.SOR[i]; window.SOR.splice(i, 1); persistSOR(); closeModal(); toast('Category deleted', cat.name, 'info'); logAudit('Delete', 'Schedule of Rates', `Deleted category "${cat.name}" (${cat.tests.length} tests)`); sorCatFilter = ''; refreshSOR();
+}
+/* ---------- SOR — export & reset ---------- */
+function exportSOR() {
+  const rows = [['Category ID', 'Category', 'Test Name', 'IS Code', 'Sample Qty', 'Rate', 'Rate Text']];
+  (window.SOR || []).forEach(c => (c.tests || []).forEach(t => rows.push([c.id, c.name, t.name, t.code || '', t.qty || '', t.rate == null ? 'On request' : t.rate, t.rateText || ''])));
+  downloadCSV(rows, `PTH-SOR-${window.SOR_META?.financialYear || '2026-27'}.csv`);
+  logAudit('Export', 'Schedule of Rates', `Exported ${rows.length - 1} SOR rows to CSV`);
+}
+function resetSOR() {
+  openModal(`<div class="modal-head"><div class="modal-title">Reset Schedule of Rates</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Restore the approved default SOR (${(window.SOR_DEFAULT || []).reduce((a, c) => a + c.tests.length, 0)} tests). All edits, additions and imports in this browser will be discarded.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmResetSOR()">Reset</button></div>`);
+}
+function confirmResetSOR() {
+  window.SOR = JSON.parse(JSON.stringify(window.SOR_DEFAULT || [])); persistSOR(); closeModal(); sorCatFilter = ''; sorSearchTerm = '';
+  toast('SOR reset', 'Restored to the approved default rates'); logAudit('Reset', 'Schedule of Rates', 'SOR restored to default'); refreshSOR();
 }
 
 /* ---------- ACCREDITATION SCOPE ---------- */
 VIEWS.scope = function (c) {
-  const scopes = [['Concrete & Cement','IS 516, IS 4031','valid'],['Soil & Rock','IS 2720, IS 13030','valid'],['Bitumen & Aggregates','IS 1201, IS 2386','valid'],['Steel & Metals','IS 1608, IS 1786','expiring'],['Non-Destructive Testing','ASTM E164, IS 3658','valid'],['Water & Environmental','IS 3025, APHA','valid']];
-  c.innerHTML = `${pageHead('Accreditation Scope', 'NABL-accredited test parameters and applicable standards.', `<button class="btn btn-primary">${I.plus}Add Scope</button>`)}
-    <div class="grid dash-grid enter">${scopes.map(s=>`<div class="col-4"><div class="card card-pad hoverlift"><div class="card-head"><div class="appr-ico">${I.scope}</div><div style="margin-left:4px"><div style="font-weight:600">${s[0]}</div></div><div style="margin-left:auto">${statusBadge(s[2])}</div></div><div class="page-desc" style="margin-top:10px">Standards: ${s[1]}</div><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">Discipline: Civil / Mechanical</div></div></div>`).join('')}</div>`;
+  DB.scopes ||= [
+    { name:'Concrete & Cement', standards:'IS 516, IS 4031', status:'valid' }, { name:'Soil & Rock', standards:'IS 2720, IS 13030', status:'valid' },
+    { name:'Bitumen & Aggregates', standards:'IS 1201, IS 2386', status:'valid' }, { name:'Steel & Metals', standards:'IS 1608, IS 1786', status:'expiring' },
+    { name:'Non-Destructive Testing', standards:'ASTM E164, IS 3658', status:'valid' }, { name:'Water & Environmental', standards:'IS 3025, APHA', status:'valid' },
+  ];
+  c.innerHTML = `${pageHead('Accreditation Scope', 'NABL-accredited test parameters and applicable standards.', `<button class="btn btn-ghost" onclick="openPdfBulkImport('scope')">${I.upload}Bulk Import PDFs</button><button class="btn btn-primary">${I.plus}Add Scope</button>`)}
+    <div class="grid dash-grid enter">${DB.scopes.map(s=>`<div class="col-4"><div class="card card-pad hoverlift"><div class="card-head"><div class="appr-ico">${I.scope}</div><div style="margin-left:4px"><div style="font-weight:600">${esc(s.name)}</div></div><div style="margin-left:auto">${statusBadge(s.status)}</div></div><div class="page-desc" style="margin-top:10px">Standards: ${esc(s.standards)}</div><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">Discipline: Civil / Mechanical</div></div></div>`).join('')}</div>`;
 };
 
 /* ---------- CUSTOMER PORTAL ---------- */
 VIEWS.portal = function (c) {
-  c.innerHTML = `${pageHead('Customer Portal', 'Client-facing preview: report status, downloads and QR verification.', '')}
+  c.innerHTML = `${pageHead('Client Portal', 'Client-facing preview: report status, downloads and QR verification.', '')}
     <div class="grid dash-grid">
       <div class="col-12"><div class="card card-pad enter" style="background:var(--black);color:#fff"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div class="brand-logo" style="width:44px;height:44px">${brandMark()}</div><div><div style="font-size:16px;font-weight:600">Welcome, L&T Construction</div><div style="color:var(--text-muted);font-size:13px">3 reports ready for download · 1 in progress</div></div><button class="btn btn-lime" style="margin-left:auto" onclick="toast('QR verified','Certificate TC-8421 is valid & authentic','ok')">Verify Certificate</button></div></div></div>
-      ${DB.certificates.customer.slice(0,4).map(cu=>`<div class="col-3"><div class="card card-pad hoverlift"><div class="appr-ico">${I.report}</div><div style="font-weight:600;margin-top:10px">${cu.name}</div><div class="page-desc tnum">${cu.num}</div><div style="margin-top:10px">${statusBadge(cu.stage==='Issued'?'issued':'review')}</div>${cu.stage==='Issued'?`<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:10px" onclick="toast('Download started','${esc(cu.num)}.pdf','info')">${I.export}Download</button>`:''}</div></div>`).join('')}
+      ${DB.certificates.customer.slice(0,4).map(cu=>`<div class="col-3"><div class="card card-pad hoverlift"><div class="appr-ico">${I.report}</div><div style="font-weight:600;margin-top:10px">${esc(cu.name)}</div><div class="page-desc tnum">${esc(cu.num)}</div><div style="margin-top:10px">${statusBadge(cu.stage==='Issued'?'issued':'review')}</div>${cu.stage==='Issued'?`<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:10px" onclick="toast('Download started','${esc(cu.num)}.pdf','info')">${I.export}Download</button>`:''}</div></div>`).join('')}
     </div>`;
 };
 
@@ -1079,7 +362,7 @@ VIEWS.portal = function (c) {
 VIEWS.settings = function (c) {
   c.innerHTML = `${pageHead('Settings', 'Branding, roles, permissions and appearance.', '')}
     <div class="grid dash-grid">
-      <div class="col-3"><div class="card card-pad enter"><div class="settings-nav"><a class="active">Branding</a><a>Roles & Permissions</a><a>Data Management</a><a>Branches</a><a>Security</a><a>Appearance</a></div></div></div>
+      <div class="col-3"><div class="card card-pad enter"><div class="settings-nav"><a class="active">Branding</a><a>Quotation Layout</a><a>Roles & Permissions</a><a>Branches</a><a>Notifications</a><a>Security</a><a>Appearance</a></div></div></div>
       <div class="col-9">
         <div class="card card-pad enter" style="margin-bottom:16px"><div class="card-head"><h3>Product Branding</h3><div class="card-sub" style="margin-left:auto">Configurable identity</div></div>
           <div class="form-grid" style="margin-top:12px"><div class="field"><label>Product Name</label><input class="input" id="setName" value="${DB.brand.name}"></div><div class="field"><label>Company</label><input class="input" id="setCompany" value="${DB.brand.company}"></div></div>
@@ -1088,64 +371,27 @@ VIEWS.settings = function (c) {
           <div class="field"><label>Accent Colour <span style="color:var(--text-muted);font-weight:400">— PTH orange or lab lime</span></label><div class="swatch-row">${['#E8791E','#9DDB23','#22C55E','#3F8CFF','#8B5CF6','#F59E0B','#EF4444','#14B8A6'].map((col,i)=>`<div class="swatch ${i===1?'on':''}" style="background:${col}" onclick="setAccent('${col}',this)"></div>`).join('')}</div></div>
           <button class="btn btn-primary" onclick="applyBranding()">${I.check}Save Branding</button>
         </div>
-        <div class="card card-pad enter" style="margin-bottom:16px"><div class="card-head"><h3>Roles & Permissions</h3></div>
+        <div class="card card-pad enter" style="margin-bottom:16px" id="googleMapsSettings"><div class="card-head"><div><h3>Google Maps Satellite Integration</h3><div class="card-sub">Official Maps Embed API for the Surat activity dashboard</div></div><span class="badge ${googleMapsApiKey()?'badge-valid':'badge-expiring'}" style="margin-left:auto"><span class="dot"></span>${googleMapsApiKey()?'Configured':'Key Required'}</span></div><div class="field" style="margin-top:14px"><label>Google Maps Embed API key</label><div style="display:flex;gap:8px"><input class="input" id="googleMapsKey" type="password" value="${esc(googleMapsApiKey())}" placeholder="AIza…" autocomplete="off"><button class="btn btn-primary" onclick="saveGoogleMapsKey()">${I.check}Save Key</button></div><div class="page-desc" style="margin-top:7px">Enable Maps Embed API in Google Cloud and restrict the key to this application’s approved web origins. The key remains in this browser only.</div></div></div>
+        <div class="card card-pad enter" style="margin-bottom:16px" id="quotationLayoutSettings"><div class="card-head"><div><h3>Quotation Layout Designer</h3><div class="card-sub">50 professional templates · editable header, footer, images, colours and typography</div></div><button class="btn btn-primary" style="margin-left:auto" onclick="saveQuotationLayout()">${I.check}Save Layout</button></div>
+          <div class="form-grid" style="margin-top:14px"><div class="field"><label>Quotation header</label><input class="input" id="qlHeader" value="${esc(quotationLayout.header)}" oninput="previewQuotationLayout()"></div><div class="field"><label>Header subtitle</label><input class="input" id="qlSubheader" value="${esc(quotationLayout.subheader)}" oninput="previewQuotationLayout()"></div></div>
+          <div class="field"><label>Footer text</label><textarea class="input" id="qlFooter" style="min-height:70px" oninput="previewQuotationLayout()">${esc(quotationLayout.footer)}</textarea></div>
+          <div class="form-grid"><div class="field"><label>Logo URL</label><input class="input" id="qlLogo" value="${esc(quotationLayout.logoUrl||'')}" oninput="previewQuotationLayout()"></div><div class="field"><label>Font</label><select class="select" id="qlFont" onchange="previewQuotationLayout()">${['Inter','Arial','Georgia','Times New Roman'].map(x=>`<option ${quotationLayout.font===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
+          <div class="form-grid"><div class="field"><label>Upload header image</label><input class="input" type="file" accept="image/*" onchange="uploadQuotationAsset('headerImage',this)"></div><div class="field"><label>Upload footer image</label><input class="input" type="file" accept="image/*" onchange="uploadQuotationAsset('footerImage',this)"></div></div>
+          <div class="form-grid"><div class="field"><label>Accent colour</label><input class="input" id="qlAccent" type="color" value="${quotationLayout.accent}" oninput="previewQuotationLayout()"></div><div class="field"><label>Background tint</label><input class="input" id="qlTint" type="color" value="${quotationLayout.tint}" oninput="previewQuotationLayout()"></div></div>
+          <div class="ql-preview" id="qlPreview"></div>
+          <div class="card-head" style="margin-top:18px"><h3>Professional Template Library</h3><span class="card-sub" style="margin-left:auto">${QUOTE_LAYOUTS.length} templates</span></div>
+          <div class="ql-template-filters">${QUOTE_LAYOUT_CATEGORIES.map(cat=>`<button class="btn btn-ghost btn-sm" onclick="filterQuotationTemplates('${cat}',this)">${cat}</button>`).join('')}<button class="btn btn-ghost btn-sm" onclick="filterQuotationTemplates('',this)">Show All</button></div>
+          <div class="ql-template-grid" id="qlTemplateGrid">${renderQuotationTemplateCards()}</div>
+        </div>
+        <div class="card card-pad enter"><div class="card-head"><h3>Roles & Permissions</h3></div>
           <div class="tbl-wrap" style="margin-top:12px"><table class="perm-grid"><thead><tr><th>Role</th>${DB.perms.slice(0,7).map(p=>`<th>${p}</th>`).join('')}</tr></thead>
           <tbody>${DB.roles.slice(0,8).map((role,ri)=>`<tr><td style="font-weight:600">${role}</td>${DB.perms.slice(0,7).map((p,pi)=>{const on=ri===0||pi<(8-ri);return `<td>${on?`<span style="color:var(--primary-dark)">${I.check}</span>`:`<span style="color:var(--text-muted)">–</span>`}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>
         </div>
-        ${dataManagementCard()}
       </div>
     </div>`;
   c.querySelectorAll('.settings-nav a').forEach(a => a.onclick = () => { c.querySelectorAll('.settings-nav a').forEach(x => x.classList.remove('active')); a.classList.add('active'); });
+  previewQuotationLayout();
 };
-function dataManagementCard() {
-  const info = Store.info();
-  const rows = [['Users', info.counts.users], ['CRM Leads', info.counts.leads], ['Credentials', info.counts.credentials], ['Equipment', info.counts.equipment], ['Staff', info.counts.staff], ['Tenders', info.counts.tenders], ['Quotations', info.counts.quotations], ['Audit events', info.counts.audit]];
-  const updated = info.updatedAt ? new Date(info.updatedAt).toLocaleString('en-IN') : '—';
-  return `<div class="card card-pad enter"><div class="card-head"><div><h3>Data Management</h3><div class="card-sub">Your data is stored separately from the app. Updating features never erases it.</div></div><span class="badge badge-valid" style="margin-left:auto"><span class="dot"></span>Persisted</span></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
-      ${rows.map(r => `<div style="flex:1;min-width:96px;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px"><div class="tnum" style="font-size:18px;font-weight:700">${r[1]}</div><div style="font-size:11px;color:var(--text-secondary)">${r[0]}</div></div>`).join('')}
-    </div>
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Last saved: <span class="tnum">${updated}</span> · Storage: browser localStorage (this device)</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-primary" onclick="backupData()">${I.export}Back up (download JSON)</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('restoreFile').click()">${I.upload}Restore from backup</button>
-      <button class="btn btn-ghost" style="color:var(--danger)" onclick="confirmResetData()">${I.x}Reset to defaults</button>
-      <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restoreData(this)">
-    </div>
-    <div style="margin-top:12px;padding:11px 13px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--text-secondary)">${I.info} <b>Tip:</b> This app keeps a clean separation — <b>code</b> (features/UI) vs <b>data</b> (records). Deploy new versions freely; your saved data stays. For multi-device/shared data, connect the backend (see README).</div>
-  </div>`;
-}
-function backupData() {
-  const stamp = nowStamp().replace(/[: ]/g, '-');
-  downloadText(Store.exportJSON(), `PTH-CRM-backup-${stamp}.json`, 'application/json');
-  logAudit('Export', 'Data Management', 'Full data backup downloaded (JSON)');
-}
-function restoreData(input) {
-  const file = input.files && input.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      Store.importJSON(reader.result); // rebinds DB.* and window.auditLog
-      logAudit('Edit', 'Data Management', `Data restored from backup "${file.name}"`);
-      renderShell(); navigate('settings');
-      toast('Data restored', `Loaded backup "${file.name}"`, 'ok');
-    } catch (e) {
-      toast('Restore failed', e.message || 'Invalid backup file', 'err');
-    }
-  };
-  reader.readAsText(file);
-  input.value = '';
-}
-function confirmResetData() {
-  openModal(`<div class="modal-head"><div class="modal-title">Reset all data?</div></div>
-    <div class="modal-body"><p style="font-size:13.5px;color:var(--text-secondary)">This wipes your saved data on this device and restores the original sample data. Consider a <b style="color:var(--text-primary)">backup</b> first. This cannot be undone.</p></div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="doResetData()">${I.x}Reset to defaults</button></div>`);
-}
-function doResetData() {
-  Store.reset();
-  closeModal(); renderShell(); navigate('settings');
-  toast('Data reset', 'Restored to original sample data', 'info');
-}
 function setAccent(col, el) { document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on')); el.classList.add('on'); document.documentElement.style.setProperty('--primary', col); }
 function applyBranding() {
   DB.brand.name = document.getElementById('setName').value || DB.brand.name;
@@ -1155,6 +401,13 @@ function applyBranding() {
   toast('Branding updated', 'Logo and product identity applied across the app');
   logAudit('Edit', 'Settings', `Branding updated — product name "${DB.brand.name}"`);
 }
+function saveGoogleMapsKey(){const input=document.getElementById('googleMapsKey'),key=input?.value.trim()||'';if(key&&!/^AIza[\w-]{20,}$/.test(key)){toast('Check API key','Enter a valid Google Maps API key beginning with AIza.','err');return;}if(key)localStorage.setItem(GOOGLE_MAPS_KEY_STORAGE,key);else localStorage.removeItem(GOOGLE_MAPS_KEY_STORAGE);toast(key?'Google Maps configured':'Google Maps key removed',key?'Satellite view is now enabled on Overview.':'Satellite view will remain disabled.');logAudit('Edit','Settings',key?'Google Maps Embed API configured':'Google Maps API key removed');navigate('overview');}
+function renderQuotationTemplateCards(category='') { return QUOTE_LAYOUTS.filter(t=>!category||t.category===category).map(t=>`<button class="ql-template ${quotationLayout.templateId===t.id?'selected':''}" onclick="selectQuotationTemplate('${t.id}')" style="--tpl-accent:${t.accent};--tpl-tint:${t.tint};--tpl-font:${t.font}"><span class="ql-template-band"></span><strong>${esc(t.name)}</strong><small>${t.id} · ${t.style}</small></button>`).join(''); }
+function filterQuotationTemplates(category,button){ document.getElementById('qlTemplateGrid').innerHTML=renderQuotationTemplateCards(category); document.querySelectorAll('.ql-template-filters .btn').forEach(b=>b.classList.remove('btn-primary')); button.classList.add('btn-primary'); }
+function selectQuotationTemplate(id){ const preset=QUOTE_LAYOUTS.find(t=>t.id===id); if(!preset)return; Object.assign(quotationLayout,{templateId:id,accent:preset.accent,tint:preset.tint,font:preset.font,style:preset.style}); document.getElementById('qlAccent').value=preset.accent; document.getElementById('qlTint').value=preset.tint; document.getElementById('qlFont').value=preset.font; document.querySelectorAll('.ql-template').forEach(card=>card.classList.toggle('selected',card.textContent.includes(id))); previewQuotationLayout(); }
+function previewQuotationLayout(){ const header=document.getElementById('qlHeader'),preview=document.getElementById('qlPreview'); if(!header||!preview)return; quotationLayout.header=header.value; quotationLayout.subheader=document.getElementById('qlSubheader').value; quotationLayout.footer=document.getElementById('qlFooter').value; quotationLayout.logoUrl=document.getElementById('qlLogo').value.trim(); quotationLayout.font=document.getElementById('qlFont').value; quotationLayout.accent=document.getElementById('qlAccent').value; quotationLayout.tint=document.getElementById('qlTint').value; preview.innerHTML=`${quotationHeader()}<div class="ql-preview-body"><b>Quotation No. PTH/QTN/2026/0092</b><span>Client · Project · Test Category</span><div class="ql-preview-line"></div><div class="ql-preview-line short"></div></div>${quotationFooter()}`; }
+function uploadQuotationAsset(key,input){ const file=input.files?.[0]; if(!file)return; if(file.size>1500000){toast('Image too large','Use an image below 1.5 MB.','err');input.value='';return;} const reader=new FileReader(); reader.onload=()=>{quotationLayout[key]=reader.result;previewQuotationLayout();toast('Image uploaded','Preview updated. Save the layout to apply it.');}; reader.readAsDataURL(file); }
+function saveQuotationLayout(){ previewQuotationLayout(); localStorage.setItem(QUOTE_LAYOUT_KEY,JSON.stringify(quotationLayout)); toast('Quotation layout saved',`${QUOTE_LAYOUTS.find(t=>t.id===quotationLayout.templateId)?.name||'Custom layout'} applied to quotations`); logAudit('Edit','Settings',`Quotation layout ${quotationLayout.templateId} updated`); }
 
 /* ---------- USER MANAGEMENT (add / edit / delete / enable-disable) ---------- */
 VIEWS.users = function (c) {
@@ -1187,7 +440,7 @@ function renderUsersTable(q) {
       <td class="cell-dim">${esc(u.email)}</td>
       <td class="cell-dim">${esc(u.role)}</td>
       <td class="cell-dim">${esc(u.branch || '—')}</td>
-      <td class="cell-dim tnum" style="font-size:12px">${u.lastLogin || '—'}</td>
+      <td class="cell-dim tnum" style="font-size:12px">${u.lastLogin&&u.lastLogin!=='—'?formatAppDateTime(u.lastLogin):'—'}</td>
       <td>${u.status === 'active' ? '<span class="badge badge-valid"><span class="dot"></span>Active</span>' : '<span class="badge badge-expired"><span class="dot"></span>Disabled</span>'}</td>
       <td><div style="display:flex;gap:4px;justify-content:flex-end;align-items:center">
         <span class="toggle ${u.status === 'active' ? 'on' : ''}" title="${u.status === 'active' ? 'Disable' : 'Enable'}" onclick="toggleUserStatus('${u.id}')"></span>
@@ -1205,175 +458,89 @@ function openUserModal(id) {
       <input type="hidden" id="uId" value="${editing ? u.id : ''}">
       <div class="form-grid">
         <div class="field" id="uf-name"><label>Full Name <span class="req">*</span></label><input class="input" id="uName" value="${editing ? esc(u.name) : ''}" placeholder="e.g. Hardik" oninput="uSyncPass()"><div class="field-err">${I.info}Name is required</div></div>
-        <div class="field" id="uf-username"><label>Username <span class="req">*</span></label><input class="input" id="uUsername" value="${editing ? esc(u.username) : ''}" placeholder="e.g. hardik"><div class="field-err">${I.info}Username is required</div></div>
-      </div>
-      <div class="field" id="uf-email"><label>Email <span class="req">*</span></label><input class="input" id="uEmail" value="${editing ? esc(u.email) : ''}" placeholder="name@pramukhtesthouse.com"><div class="field-err">${I.info}Valid email is required</div></div>
-      <div class="form-grid">
-        <div class="field"><label>Role</label><select class="select" id="uRole">${DB.roles.map(r => `<option ${editing && u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
-        <div class="field"><label>Branch</label><select class="select" id="uBranch">${DB.branches.map(b => `<option ${editing && u.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
-      </div>
-      <div class="field"><label>Password</label><input class="input" id="uPass" type="password" oninput="this.dataset.touched=1" placeholder="${editing ? 'Leave blank to keep unchanged' : 'Enter a strong password'}"><div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">Use a unique password of at least 12 characters.</div></div>
-      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
-        <span class="toggle ${!editing || u.status === 'active' ? 'on' : ''}" id="uStatus" onclick="this.classList.toggle('on')"></span>
-        <div><div style="font-size:13px;font-weight:600">Account enabled</div><div style="font-size:11.5px;color:var(--text-secondary)">Disabled users cannot sign in</div></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveUser()">${I.check}${editing ? 'Save Changes' : 'Create User'}</button></div>`);
-  if (!editing) uSyncPass();
-}
-function uSyncPass() {
-  const name = document.getElementById('uName').value.trim();
-  const pass = document.getElementById('uPass');
-  const uname = document.getElementById('uUsername');
-  if (name) {
-    if (!pass.dataset.touched) pass.value = '';
-    if (uname && !uname.value) uname.value = name.toLowerCase().replace(/\s+/g, '');
-  }
-}
-function saveUser() {
-  const id = document.getElementById('uId').value;
-  const name = document.getElementById('uName').value.trim();
-  const username = document.getElementById('uUsername').value.trim();
-  const email = document.getElementById('uEmail').value.trim();
-  let ok = true;
-  const bad = (fid) => { const f = document.getElementById(fid); f.classList.add('show-err'); f.querySelector('.input').classList.add('shake'); setTimeout(() => f.querySelector('.input').classList.remove('shake'), 350); ok = false; };
-  document.getElementById('uf-name').classList.remove('show-err');
-  document.getElementById('uf-username').classList.remove('show-err');
-  document.getElementById('uf-email').classList.remove('show-err');
-  if (!name) bad('uf-name');
-  if (!username) bad('uf-username');
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad('uf-email');
-  if (!ok) return;
-  const role = document.getElementById('uRole').value;
-  const branch = document.getElementById('uBranch').value;
-  const status = document.getElementById('uStatus').classList.contains('on') ? 'active' : 'disabled';
-  const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  if (id) {
-    const u = DB.users.find(x => x.id === id);
-    Object.assign(u, { name, username, email, role, branch, status, initials });
-    toast('User updated', `${name} · ${role}`);
-    logAudit('Edit', 'User Management', `User ${name} (${role}) updated`);
-  } else {
-    const num = (Math.max(0, ...DB.users.map(u => +u.id.split('-')[1] || 0)) + 1).toString().padStart(3, '0');
-    DB.users.push({ id: 'U-' + num, name, username, email, role, branch, status, initials, lastLogin: '—' });
-    toast('User created', `${name} · ${role}`);
-    logAudit('Create', 'User Management', `User ${name} (${role}) created`);
-  }
-  closeModal();
-  renderUsersTable(document.getElementById('userSearch')?.value || '');
-  // refresh stat strip counts
-  VIEWS.users(document.getElementById('canvas'));
-}
-function toggleUserStatus(id) {
-  const u = DB.users.find(x => x.id === id);
-  u.status = u.status === 'active' ? 'disabled' : 'active';
-  renderUsersTable(document.getElementById('userSearch')?.value || '');
-  toast(u.status === 'active' ? 'User enabled' : 'User disabled', `${u.name} can ${u.status === 'active' ? 'now sign in' : 'no longer sign in'}`, u.status === 'active' ? 'ok' : 'info');
-  logAudit(u.status === 'active' ? 'Enable' : 'Disable', 'User Management', `User ${u.name} ${u.status === 'active' ? 'enabled' : 'disabled'}`);
-}
-function deleteUser(id) {
-  const u = DB.users.find(x => x.id === id);
-  openModal(`
-    <div class="modal-head"><div class="modal-title">Delete user?</div></div>
-    <div class="modal-body"><p style="font-size:13.5px;color:var(--text-secondary)">This will permanently remove <b style="color:var(--text-primary)">${esc(u.name)}</b> (${u.role}) and revoke their access. This action cannot be undone.</p></div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteUser('${id}')">${I.x}Delete User</button></div>`);
-}
-function confirmDeleteUser(id) {
-  const u = DB.users.find(x => x.id === id);
-  DB.users = DB.users.filter(x => x.id !== id);
-  closeModal();
-  VIEWS.users(document.getElementById('canvas'));
-  toast('User deleted', `${u.name} removed`, 'info');
-  logAudit('Delete', 'User Management', `User ${u.name} (${u.role}) permanently deleted`);
+        <div class="field" id="uf-username"><label>Username <span class="req">*</span></label><input class="input" id="uUsername" value="${editing ? esc(u.username) : ''}" placeholder="e.g. hardik"><div class="field-err">${Id('ePerson').value,prob:STAGE_PROB.new,prio:'med'};
+  const duplicates=crmDuplicateLeads(cust,data.proj);if(duplicates.length){crmPendingLeadData=data;openModal(`<div class="modal-head"><div class="modal-title">Possible Duplicate Enquiry</div><button class="icon-btn drawer-close" onclick="crmPendingLeadData=null;closeModal()">${I.x}</button></div><div class="modal-body"><p>${duplicates.length} similar existing record${duplicates.length===1?' was':'s were'} found.</p>${duplicates.map(x=>`<div class="kv"><span class="v"><b>${esc(x.id)} · ${esc(x.cust)}</b><small style="display:block">${esc(x.proj)}</small></span></div>`).join('')}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="crmPendingLeadData=null;closeModal()">Cancel</button><button class="btn btn-primary" onclick="crmConfirmDuplicateLead()">Create Separate Enquiry</button></div>`);return;}
+  const lead = { id: nextLeadId(), follow: '—',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...data };
+  DB.pipeline.leads.push(lead); persistPipeline();
+  crmRunAutomation('lead_created',lead);crmRunAutomation('lead_saved',lead);
+  closeModal(); toast('Enquiry created', `${cust} · added to pipeline (New)`);
+  logAudit('Create', 'Enquiries', `Enquiry logged — ${cust} (${lead.id})`);
+  if (state.route === 'pipeline') VIEWS.pipeline(document.getElementById('canvas'));
+  else if (state.route === 'enquiries') VIEWS.enquiries(document.getElementById('canvas'));
+  else if (state.route === 'overview') navigate('pipeline');
 }
 
-/* ---------- AUDIT TRAIL (activity log across all modules) ---------- */
-const AUDIT_ACTION_TONE = { Login: 'info', Create: 'valid', Edit: 'renewal', 'Status Change': 'renewal', Approve: 'approved', Export: 'neutral', Delete: 'expired', Disable: 'expired', Enable: 'valid' };
-VIEWS.audit = function (c) {
-  const today = nowStamp().slice(0, 10);
-  const todayCount = window.auditLog.filter(e => (e.ts || '').startsWith(today)).length;
-  const modules = [...new Set(window.auditLog.map(e => e.module))];
-  const actions = [...new Set(window.auditLog.map(e => e.action))];
-  c.innerHTML = `${pageHead('Audit Trail', 'Immutable activity log of every create, edit, delete, approval and login across all modules.', `<button class="btn btn-ghost hide-sm" onclick="exportAudit()">${I.export}Export CSV</button>`)}
-    <div class="stat-strip enter">
-      <div class="stat-chip"><div class="sc-val tnum">${window.auditLog.length}</div><div class="sc-label">Total events</div></div>
-      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--primary-dark)">${todayCount}</div><div class="sc-label"><span class="dot" style="background:var(--primary-dark)"></span>Today</div></div>
-      <div class="stat-chip"><div class="sc-val tnum">${modules.length}</div><div class="sc-label"><span class="dot" style="background:var(--info)"></span>Modules</div></div>
-      <div class="stat-chip"><div class="sc-val tnum">${new Set(window.auditLog.map(e => e.user)).size}</div><div class="sc-label"><span class="dot" style="background:var(--warning)"></span>Users</div></div>
-    </div>
-    <div class="filter-bar enter">
-      <div class="filter-search">${I.search}<input placeholder="Search events, users, details..." id="auditSearch" oninput="renderAuditTable(this.value)"></div>
-      <select class="fdrop" id="auditAction" onchange="renderAuditTable(document.getElementById('auditSearch').value)"><option value="">All actions</option>${actions.map(a => `<option>${a}</option>`).join('')}</select>
-      <select class="fdrop" id="auditModule" onchange="renderAuditTable(document.getElementById('auditSearch').value)"><option value="">All modules</option>${modules.map(m => `<option>${m}</option>`).join('')}</select>
-    </div>
-    <div class="card enter"><div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th style="width:150px">Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Detail</th></tr></thead>
-      <tbody id="auditBody"></tbody>
-    </table></div></div>`;
-  renderAuditTable('');
-};
-function renderAuditTable(q) {
-  const body = document.getElementById('auditBody'); if (!body) return;
-  q = (q || '').toLowerCase();
-  const fA = document.getElementById('auditAction')?.value || '';
-  const fM = document.getElementById('auditModule')?.value || '';
-  const rows = window.auditLog.filter(e =>
-    (!fA || e.action === fA) && (!fM || e.module === fM) &&
-    (!q || (e.user + e.action + e.module + e.detail).toLowerCase().includes(q)));
-  body.innerHTML = rows.length ? rows.map(e => `
-    <tr>
-      <td class="cell-dim tnum" style="font-size:12px;white-space:nowrap">${e.ts}</td>
-      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:26px;height:26px;font-size:10px">${(e.user || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div><div><div class="cell-strong" style="font-size:12.5px">${esc(e.user)}</div><div class="cell-dim" style="font-size:10.5px">${esc(e.role || '')}</div></div></div></td>
-      <td><span class="badge badge-${AUDIT_ACTION_TONE[e.action] || 'neutral'}"><span class="dot"></span>${esc(e.action)}</span></td>
-      <td class="cell-dim">${esc(e.module)}</td>
-      <td class="cell-dim">${esc(e.detail)}</td>
-    </tr>`).join('') : `<tr><td colspan="5"><div class="empty" style="padding:30px"><div class="empty-ico">${I.shield}</div><h4>No matching events</h4><p>Adjust the filters or search</p></div></td></tr>`;
+/* ============================================================
+   ADVANCED ANALYTICS & REPORT CENTRE
+   ============================================================ */
+const ANALYTICS_REPORTS=[['executive','Executive Overview'],['leadscore','Lead Scoring & Health'],['forecast','Forecast & Targets'],['winloss','Win / Loss Intelligence'],['approvals','Commercial Approvals'],['automation','Workflow Automation'],['users','User Performance'],['departments','Department Performance'],['tests','Test-wise Analysis'],['parameters','Parameter-wise Analysis'],['funnel','Sales Funnel'],['quotations','Quotation Performance'],['followups','Follow-up Effectiveness'],['clients','Client Intelligence'],['owners','Owner Performance'],['tenders','Tender Intelligence'],['sor','SOR Rate Intelligence'],['compliance','Compliance Health']];
+const ANALYTICS_PERIODS=[['daily','Daily'],['weekly','Weekly'],['monthly','Monthly'],['yearly','Yearly'],['lifetime','Lifetime'],['custom','Custom']];
+let analyticsState={report:'executive',period:'yearly',from:'2026-01-01',to:localDateISO()};
+const anPct=(a,b)=>b?Math.round(a/b*1000)/10:0;
+const anFmt=(v,t)=>t==='inr'?inr(+v||0):t==='pct'?`${(+v||0).toLocaleString('en-IN',{maximumFractionDigits:1})}%`:t==='date'?(v?formatFollowupDate(String(v).slice(0,10)):'—'):typeof v==='number'?v.toLocaleString('en-IN',{maximumFractionDigits:2}):String(v??'—');
+const anGroup=(list,fn)=>list.reduce((o,x)=>{const k=fn(x)||'Unspecified';(o[k]||=[]).push(x);return o;},{});
+const anInRange=d=>!d||((!analyticsState.from||String(d).slice(0,10)>=analyticsState.from)&&(!analyticsState.to||String(d).slice(0,10)<=analyticsState.to));
+function analyticsRecordInRange(x,fields){const d=fields.map(k=>x?.[k]).find(Boolean);return d?anInRange(d):analyticsState.period==='lifetime';}
+function setAnalyticsPeriod(period){const now=new Date(),end=localDateISO(now);let start='';if(period==='daily')start=end;else if(period==='weekly'){const d=new Date(now),day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);start=localDateISO(d);}else if(period==='monthly')start=`${end.slice(0,7)}-01`;else if(period==='yearly')start=`${end.slice(0,4)}-01-01`;else if(period==='lifetime'){start='';}else{analyticsState.period='custom';refreshAnalyticsView();return;}analyticsState={...analyticsState,period,from:start,to:period==='lifetime'?'':end};refreshAnalyticsView();}
+function analyticsPersonAliases(name){const u=(DB.users||[]).find(x=>x.name===name),parts=String(name).trim().split(/\s+/),initials=(u?.initials||parts.map(x=>x[0]).join('')).toUpperCase();return new Set([String(name).toLowerCase(),initials.toLowerCase(),parts.map(x=>x[0]).join('').toLowerCase()]);}
+function analyticsUserReport(base){
+  const periodLeads=(DB.pipeline.leads||[]).filter(x=>analyticsRecordInRange(x,['createdAt','updatedAt'])),quotes=savedQuotations.filter(x=>anInRange(x.date)),fus=followups.filter(x=>anInRange(x.due)),audits=auditLog.filter(x=>anInRange(x.ts));
+  const names=[...new Set([...(DB.users||[]).map(x=>x.name),...periodLeads.map(x=>x.person),...fus.map(x=>x.assignee),...audits.map(x=>x.user)].filter(Boolean))];
+  const rows=names.map(name=>{const aliases=analyticsPersonAliases(name),match=v=>aliases.has(String(v||'').toLowerCase()),ls=periodLeads.filter(x=>match(x.person)),fs=fus.filter(x=>match(x.assignee)),as=audits.filter(x=>match(x.user)),qs=quotes.filter(x=>match(x.representative?.name||x.createdBy)),open=ls.filter(x=>!['won','lost'].includes(x.col)),won=ls.filter(x=>x.col==='won'),done=fs.filter(x=>x.status==='completed'),late=fs.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue'),pipeline=open.reduce((s,x)=>s+(+x.val||0),0),weighted=open.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0),qv=qs.reduce((s,x)=>s+(+x.total||0),0),score=Math.min(100,Math.round(anPct(won.length,Math.max(1,ls.length))*.32+anPct(done.length,Math.max(1,fs.length))*.28+Math.min(100,as.length*8)*.2+Math.min(100,weighted/10000)*.2));const user=(DB.users||[]).find(x=>x.name===name);return[name,user?.role||'Opportunity Owner',ls.length,open.length,won.length,pipeline,weighted,qs.length,qv,fs.length,anPct(done.length,fs.length),late.length,as.length,score];}).sort((a,b)=>b[13]-a[13]||b[6]-a[6]);
+  return{...base,kpis:[['People Reported',rows.length,'int'],['Activities',rows.reduce((s,x)=>s+x[12],0),'int'],['Assigned Opportunities',rows.reduce((s,x)=>s+x[2],0),'int'],['Weighted Forecast',rows.reduce((s,x)=>s+x[6],0),'inr'],['Follow-up Completion',anPct(rows.reduce((s,x)=>s+x[9]*x[10]/100,0),rows.reduce((s,x)=>s+x[9],0)),'pct'],['Average Performance',rows.length?rows.reduce((s,x)=>s+x[13],0)/rows.length:0,'pct']],columns:[['User','text'],['Role','text'],['Leads','int'],['Open','int'],['Won','int'],['Pipeline','inr'],['Weighted Forecast','inr'],['Quotes','int'],['Quote Value','inr'],['Follow-ups','int'],['Completion','pct'],['Overdue','int'],['System Activities','int'],['Performance Score','pct']],rows,insights:[`Top performer: ${rows[0]?.[0]||'No activity'} (${anFmt(rows[0]?.[13]||0,'pct')}).`,`${rows.filter(x=>x[11]>0).length} users have overdue follow-ups.`,`${rows.filter(x=>x[12]===0&&x[2]===0&&x[9]===0).length} users recorded no activity in this period.`],chart:13};
 }
-function exportAudit() {
-  const rows = [['Timestamp', 'User', 'Role', 'Action', 'Module', 'Detail'], ...auditLog.map(e => [e.ts, e.user, e.role, e.action, e.module, e.detail])];
-  downloadCSV(rows, 'PTH-CRM-audit-trail.csv');
-  logAudit('Export', 'Audit Trail', `Exported ${window.auditLog.length} audit events to CSV`);
+function analyticsDepartmentFor(module=''){const m=String(module).toLowerCase();if(/enquir|quotation|crm|follow|client/.test(m))return'CRM & Sales';if(/credential|certif|approval|compliance|audit/.test(m))return'Quality & Compliance';if(/test|sor|scope|technical|report/.test(m))return'Technical Operations';if(/tender|package/.test(m))return'Tendering';if(/user|auth|setting|admin/.test(m))return'Management & Administration';return'General Operations';}
+function analyticsDepartmentReport(base){
+  const audits=auditLog.filter(x=>anInRange(x.ts)),leads=(DB.pipeline.leads||[]).filter(x=>analyticsRecordInRange(x,['createdAt','updatedAt'])),quotes=savedQuotations.filter(x=>anInRange(x.date)),fus=followups.filter(x=>anInRange(x.due)),tenders=(DB.tenders||[]).filter(x=>analyticsRecordInRange(x,['createdAt','updatedAt','due'])),creds=(DB.credentials||[]).filter(x=>analyticsRecordInRange(x,['updatedAt','issue']));
+  const departments=['CRM & Sales','Quality & Compliance','Technical Operations','Tendering','Management & Administration','General Operations'];
+  const rows=departments.map(d=>{const acts=audits.filter(x=>analyticsDepartmentFor(x.module)===d),isCRM=d==='CRM & Sales',isTender=d==='Tendering',isQuality=d==='Quality & Compliance',isTechnical=d==='Technical Operations',l=isCRM?leads:[],q=isCRM?quotes:[],f=isCRM?fus:[],t=isTender?tenders:[],c=isQuality?creds:[],catalogue=isTechnical&&analyticsState.period==='lifetime'?(window.SOR||[]).flatMap(x=>x.tests||[]).length:0,records=l.length+q.length+f.length+t.length+c.length+catalogue,value=l.reduce((s,x)=>s+(+x.val||0),0)+q.reduce((s,x)=>s+(+x.total||0),0)+t.reduce((s,x)=>s+(+x.value||0),0),done=f.filter(x=>x.status==='completed').length,health=isCRM?Math.round((anPct(l.filter(x=>x.col==='won').length,Math.max(1,l.length))+anPct(done,Math.max(1,f.length)))/2):isTender?anPct(t.filter(x=>x.stage==='Won'||x.stage==='Submitted').length,Math.max(1,t.length)):isQuality?anPct(c.filter(x=>x.verified).length,Math.max(1,c.length)):Math.min(100,acts.length*10),score=Math.min(100,Math.round(health*.65+Math.min(100,acts.length*8)*.35));return[d,records,acts.length,l.length,q.length,f.length,t.length,c.length,value,health,score];}).sort((a,b)=>b[10]-a[10]||b[1]-a[1]);
+  return{...base,kpis:[['Departments',rows.length,'int'],['Total Records',rows.reduce((s,x)=>s+x[1],0),'int'],['Recorded Activities',rows.reduce((s,x)=>s+x[2],0),'int'],['Business Value',rows.reduce((s,x)=>s+x[8],0),'inr'],['Average Health',rows.length?rows.reduce((s,x)=>s+x[9],0)/rows.length:0,'pct'],['Average Performance',rows.length?rows.reduce((s,x)=>s+x[10],0)/rows.length:0,'pct']],columns:[['Department','text'],['Records','int'],['Activities','int'],['Enquiries','int'],['Quotations','int'],['Follow-ups','int'],['Tenders','int'],['Credentials','int'],['Financial Value','inr'],['Operational Health','pct'],['Performance Score','pct']],rows,insights:[`Leading department: ${rows[0]?.[0]||'No activity'} (${anFmt(rows[0]?.[10]||0,'pct')}).`,`${rows.reduce((s,x)=>s+x[2],0)} system activities were recorded in this period.`,`CRM & Sales generated ${inr(rows.find(x=>x[0]==='CRM & Sales')?.[8]||0)} in tracked business value.`],chart:10};
 }
-
-/* ---------- Download helpers ---------- */
-function downloadBlob(blob, filename, notify = true) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
-  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-  if (notify) toast('Export ready', filename + ' downloaded', 'ok');
+const analyticsTestKey=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+function analyticsQuotationLines(){return savedQuotations.filter(q=>anInRange(q.date)).flatMap(q=>(q.items||[]).map(item=>({q,item,gross:item.onReq?0:(+item.qty||0)*(+item.rate||0),discount:item.onReq?0:(+item.qty||0)*(+item.rate||0)*(+item.disc||0)/100})));}
+function analyticsTestReport(base){
+  const catalogue=new Map();(window.SOR||[]).forEach(cat=>(cat.tests||[]).forEach(t=>{const key=analyticsTestKey(t.name),r=catalogue.get(key)||{name:t.name,cats:new Set(),codes:new Set(),rates:[],occ:0,onReq:0};r.cats.add(cat.name);if(t.code)r.codes.add(t.code);r.occ++;if(t.rate==null)r.onReq++;else r.rates.push(+t.rate);catalogue.set(key,r);}));
+  const commercial=new Map();analyticsQuotationLines().forEach(({q,item,gross,discount})=>{const key=analyticsTestKey(item.name),r=commercial.get(key)||{name:item.name,cats:new Set(),codes:new Set(),lines:0,qty:0,gross:0,discount:0,net:0,customers:new Set()};r.cats.add(item.category||'Uncategorised');if(item.code)r.codes.add(item.code);r.lines++;r.qty+=+item.qty||0;r.gross+=gross;r.discount+=discount;r.net+=gross-discount;r.customers.add(q.customer);commercial.set(key,r);});
+  const keys=new Set([...catalogue.keys(),...commercial.keys()]),rows=[...keys].map(key=>{const c=catalogue.get(key),m=commercial.get(key),rates=c?.rates||[];return[c?.name||m?.name,[...(c?.cats||m?.cats||[])].join(' / '),[...(c?.codes||m?.codes||[])].join(' / '),c?.occ||0,c?anPct(rates.length,c.occ):0,rates.length?Math.min(...rates):0,rates.length?rates.reduce((s,x)=>s+x,0)/rates.length:0,rates.length?Math.max(...rates):0,m?.lines||0,m?.qty||0,m?.gross||0,m?.discount||0,m?.net||0,m?.customers.size||0];}).sort((a,b)=>b[12]-a[12]||b[8]-a[8]||a[0].localeCompare(b[0]));
+  const quoted=rows.filter(x=>x[8]>0),gross=rows.reduce((s,x)=>s+x[10],0),discount=rows.reduce((s,x)=>s+x[11],0);return{...base,kpis:[['Unique Tests',rows.length,'int'],['Quoted Tests',quoted.length,'int'],['Unquoted Tests',rows.length-quoted.length,'int'],['Quoted Quantity',rows.reduce((s,x)=>s+x[9],0),'int'],['Net Test Value',rows.reduce((s,x)=>s+x[12],0),'inr'],['Average Discount',anPct(discount,gross),'pct']],columns:[['Test / Service','text'],['Category','text'],['Standard / Code','text'],['SOR Occurrences','int'],['Fixed-rate Coverage','pct'],['Minimum Rate','inr'],['Average Rate','inr'],['Maximum Rate','inr'],['Quoted Lines','int'],['Quoted Qty','int'],['Gross Value','inr'],['Discount','inr'],['Net Value','inr'],['Customers','int']],rows,insights:[`Most valuable quoted test: ${quoted[0]?.[0]||'No quoted tests'} (${inr(quoted[0]?.[12]||0)}).`,`${rows.filter(x=>x[4]===0).length} tests are entirely on-request or outside the priced SOR.`,`${rows.length-quoted.length} tests had no quotation demand in the selected period.`],chart:12};
 }
-function downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(cell => { const s = String(cell == null ? '' : cell); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n');
-  downloadBlob(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), filename);
+function analyticsParameterReport(base){
+  const catalogue=new Map();(window.SOR||[]).forEach(cat=>(cat.tests||[]).forEach(t=>{const key=analyticsTestKey(t.name),r=catalogue.get(key)||{name:t.name,cats:new Set(),codes:new Set(),occ:0,priced:0,parents:new Set()};r.cats.add(cat.name);if(t.code)r.codes.add(t.code);r.occ++;if(t.rate!=null)r.priced++;r.parents.add(cat.name);catalogue.set(key,r);}));
+  const usage=new Map();analyticsQuotationLines().forEach(({q,item,gross,discount})=>{const params=item.parameters?.length?item.parameters:[item.name],share=Math.max(1,params.length);params.forEach(name=>{const key=analyticsTestKey(name),r=usage.get(key)||{name,parents:new Set(),cats:new Set(),direct:0,package:0,qty:0,value:0,customers:new Set()};r.parents.add(item.name);r.cats.add(item.category||'Uncategorised');if(item.parameters?.length)r.package++;else r.direct++;r.qty+=(+item.qty||0)/share;r.value+=(gross-discount)/share;r.customers.add(q.customer);usage.set(key,r);});});
+  const keys=new Set([...catalogue.keys(),...usage.keys()]),rows=[...keys].map(key=>{const c=catalogue.get(key),u=usage.get(key);return[c?.name||u?.name,[...(u?.parents||c?.parents||[])].join(' / '),[...(c?.cats||u?.cats||[])].join(' / '),[...(c?.codes||[])].join(' / '),c?.occ||0,u?.direct||0,u?.package||0,(u?.direct||0)+(u?.package||0),u?.qty||0,c?anPct(c.priced,c.occ):0,u?.value||0,u?.customers.size||0];}).sort((a,b)=>b[10]-a[10]||b[7]-a[7]||a[0].localeCompare(b[0]));
+  const used=rows.filter(x=>x[7]>0);return{...base,kpis:[['Unique Parameters',rows.length,'int'],['Used Parameters',used.length,'int'],['Direct Selections',rows.reduce((s,x)=>s+x[5],0),'int'],['Package Inclusions',rows.reduce((s,x)=>s+x[6],0),'int'],['Allocated Quantity',rows.reduce((s,x)=>s+x[8],0),'int'],['Allocated Value',rows.reduce((s,x)=>s+x[10],0),'inr']],columns:[['Parameter','text'],['Parent Test / Package','text'],['Category','text'],['Standard / Code','text'],['SOR Occurrences','int'],['Direct Quotes','int'],['Package Quotes','int'],['Total Usage','int'],['Allocated Qty','int'],['Rate Coverage','pct'],['Allocated Value','inr'],['Customers','int']],rows,insights:[`Highest-value parameter: ${used[0]?.[0]||'No used parameters'} (${inr(used[0]?.[10]||0)} allocated).`,`${rows.reduce((s,x)=>s+x[6],0)} parameter inclusions came through full-combo packages.`,`${rows.length-used.length} parameters had no quotation usage in the selected period.`],chart:10};
 }
-function downloadText(text, filename, mime = 'text/plain') {
-  downloadBlob(new Blob([text], { type: mime + ';charset=utf-8' }), filename);
+function analyticsReportData(id=analyticsState.report){
+  const leads=DB.pipeline.leads||[],open=leads.filter(x=>!['won','lost'].includes(x.col)),won=leads.filter(x=>x.col==='won'),quotes=savedQuotations.filter(x=>anInRange(x.date)),fus=followups.filter(x=>anInRange(x.due)),td=DB.tenders||[],sor=window.SOR||[],openVal=open.reduce((s,x)=>s+(+x.val||0),0),weighted=open.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0);
+  const base={id,title:ANALYTICS_REPORTS.find(x=>x[0]===id)?.[1]||'Report',kpis:[],columns:[],rows:[],insights:[],chart:1,generated:formatAppDateTime(new Date())};
+  if(id==='users')return analyticsUserReport(base);
+  if(id==='departments')return analyticsDepartmentReport(base);
+  if(id==='tests')return analyticsTestReport(base);
+  if(id==='parameters')return analyticsParameterReport(base);
+  if(id==='leadscore'){const rows=leads.map(l=>{const s=crmLeadScore(l),h=crmDealHealth(l);return[l.id,l.cust,l.cat,s.score,s.band,h.level,h.age,l.person,l.val,l.val*(l.prob||0)/100,s.next];}).sort((a,b)=>b[3]-a[3]);return{...base,kpis:[['Hot Leads',rows.filter(x=>x[4]==='Hot').length,'int'],['Warm Leads',rows.filter(x=>x[4]==='Warm').length,'int'],['At Risk',rows.filter(x=>x[5]==='At Risk').length,'int'],['Healthy',rows.filter(x=>x[5]==='Healthy').length,'int'],['Avg. Score',rows.length?rows.reduce((s,x)=>s+x[3],0)/rows.length:0,'int']],columns:[['ID','text'],['Client','text'],['Category','text'],['Score','int'],['Band','text'],['Health','text'],['Inactive Days','int'],['Owner','text'],['Value','inr'],['Weighted','inr'],['Next Action','text']],rows,insights:[`${rows.filter(x=>x[4]==='Hot').length} hot opportunities should receive priority.`,`${rows.filter(x=>x[5]==='At Risk').length} opportunities require recovery action.`,`Average lead score is ${Math.round(rows.length?rows.reduce((s,x)=>s+x[3],0)/rows.length:0)}.`],chart:3};}
+  if(id==='forecast'){const f=crmForecast(),g=anGroup(open,x=>x.person),rows=Object.entries(g).map(([name,a])=>[name,a.length,a.reduce((s,x)=>s+(+x.val||0),0),a.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0),a.filter(x=>(+x.prob||0)>=50).reduce((s,x)=>s+(+x.val||0),0),a.filter(x=>(+x.prob||0)>=75).reduce((s,x)=>s+(+x.val||0),0)]).sort((a,b)=>b[3]-a[3]);return{...base,kpis:[['Open Pipeline',openVal,'inr'],['Weighted',f.weighted,'inr'],['Best Case',f.best,'inr'],['Committed',f.commit,'inr'],['Won',f.won,'inr'],['Target Attainment',f.attainment,'pct']],columns:[['Owner','text'],['Open Deals','int'],['Open Value','inr'],['Weighted','inr'],['Best Case','inr'],['Committed','inr']],rows,insights:[`Committed forecast is ${inr(f.commit)}.`,`Weighted coverage is ${f.target?Math.round(f.weighted/f.target*100):0}% of target.`,`Forecast leader: ${rows[0]?.[0]||'None'}.`],chart:3};}
+  if(id==='winloss'){const decided=leads.filter(x=>['won','lost'].includes(x.col)),g=anGroup(decided,x=>x.col==='won'?'Won':(x.lostReason?.reason||'Unspecified')),rows=Object.entries(g).map(([reason,a])=>[reason,a.length,a.reduce((s,x)=>s+(+x.val||0),0),anPct(a.length,decided.length)]).sort((a,b)=>b[1]-a[1]),wins=decided.filter(x=>x.col==='won');return{...base,kpis:[['Decided',decided.length,'int'],['Won',wins.length,'int'],['Lost',decided.length-wins.length,'int'],['Win Rate',anPct(wins.length,decided.length),'pct'],['Won Value',wins.reduce((s,x)=>s+(+x.po?.value||+x.val||0),0),'inr']],columns:[['Outcome / Reason','text'],['Opportunities','int'],['Value','inr'],['Share','pct']],rows,insights:[`Win rate is ${anPct(wins.length,decided.length)}%.`,`Primary loss reason: ${rows.find(x=>x[0]!=='Won')?.[0]||'No losses recorded'}.`,`Won portfolio value is ${inr(wins.reduce((s,x)=>s+(+x.po?.value||+x.val||0),0))}.`],chart:1};}
+  if(id==='approvals'){const rows=crmIntel.approvals.map(a=>[a.id,a.quotation,a.customer,a.value,a.reasons.join('; '),a.status,a.requestedBy,a.requestedAt,a.decidedBy||'',a.decidedAt||'']);return{...base,kpis:[['Requests',rows.length,'int'],['Pending',rows.filter(x=>x[5]==='pending').length,'int'],['Approved',rows.filter(x=>x[5]==='approved').length,'int'],['Rejected',rows.filter(x=>x[5]==='rejected').length,'int'],['Controlled Value',rows.reduce((s,x)=>s+x[3],0),'inr']],columns:[['Approval ID','text'],['Quotation','text'],['Client','text'],['Value','inr'],['Triggers','text'],['Status','text'],['Requested By','text'],['Requested','date'],['Decided By','text'],['Decided','date']],rows,insights:[`${rows.filter(x=>x[5]==='pending').length} commercial approvals await decision.`,`${rows.filter(x=>x[5]==='approved').length} approved versions are locked.`,`${inr(rows.filter(x=>x[5]==='pending').reduce((s,x)=>s+x[3],0))} is pending control.`],chart:3};}
+  if(id==='automation'){const rows=crmIntel.automationLog.map(x=>[x.ts,x.rule,x.record,x.detail,x.user]);return{...base,kpis:[['Automation Events',rows.length,'int'],['Active Rules',crmIntel.rules.filter(x=>x.enabled).length,'int'],['Paused Rules',crmIntel.rules.filter(x=>!x.enabled).length,'int'],['Active Cadences',crmIntel.enrollments.filter(x=>x.status==='active').length,'int']],columns:[['Timestamp','date'],['Rule','text'],['Record','text'],['Action','text'],['Actor','text']],rows,insights:[`${crmIntel.rules.filter(x=>x.enabled).length} workflow rules are active.`,`${crmIntel.enrollments.filter(x=>x.status==='active').length} sales cadences are active.`,`${rows.length} automated actions are fully traceable.`],chart:0};}
+  if(id==='executive'){const qv=quotes.reduce((s,x)=>s+(+x.total||0),0),tv=td.reduce((s,x)=>s+(+x.value||0),0),tests=sor.flatMap(x=>x.tests||[]);return {...base,kpis:[['Open Pipeline',openVal,'inr'],['Weighted Forecast',weighted,'inr'],['Quotation Value',qv,'inr'],['Won Opportunities',won.length,'int'],['Overdue Follow-ups',fus.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue').length,'int'],['Tender Value',tv,'inr']],columns:[['Business Area','text'],['Records','int'],['Financial Value','inr'],['Health / Conversion','pct']],rows:[['Enquiries',leads.length,leads.reduce((s,x)=>s+(+x.val||0),0),anPct(won.length,leads.length)],['Quotations',quotes.length,qv,anPct(quotes.filter(x=>x.status==='won').length,quotes.length)],['Follow-ups',fus.length,0,anPct(fus.filter(x=>x.status==='completed').length,fus.length)],['Tenders',td.length,tv,anPct(td.filter(x=>x.stage==='Won').length,td.length)],['SOR Tests',tests.length,tests.filter(x=>x.rate!=null).reduce((s,x)=>s+x.rate,0),anPct(tests.filter(x=>x.rate!=null).length,tests.length)]],insights:[`${open.length} active opportunities represent ${inr(openVal)}.`,`Weighted forecast equals ${anPct(weighted,openVal)}% of open pipeline.`,`${fus.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue').length} overdue actions need attention.`],chart:2};}
+  if(id==='funnel'){const g=anGroup(leads,x=>x.col),rows=DB.pipeline.columns.map(c=>{const a=g[c.id]||[];return[c.name,a.length,a.reduce((s,x)=>s+(+x.val||0),0),a.length?Math.round(a.reduce((s,x)=>s+(+x.prob||0),0)/a.length):0,a.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0)]});return{...base,kpis:[['Total Leads',leads.length,'int'],['Open Value',openVal,'inr'],['Weighted Value',weighted,'inr'],['Win Rate',anPct(won.length,leads.length),'pct']],columns:[['Stage','text'],['Leads','int'],['Value','inr'],['Avg. Probability','pct'],['Weighted Forecast','inr']],rows,insights:[`Largest stage: ${[...rows].sort((a,b)=>b[2]-a[2])[0]?.[0]||'None'}.`,`${open.filter(x=>x.prio==='high').length} high-priority opportunities remain open.`,`Overall win rate is ${anPct(won.length,leads.length)}%.`],chart:2};}
+  if(id==='quotations'){const g=anGroup(quotes,x=>x.status),rows=Object.entries(g).map(([k,a])=>[k,a.length,a.reduce((s,x)=>s+(+x.total||0),0),a.length?a.reduce((s,x)=>s+(+x.total||0),0)/a.length:0,anPct(a.length,quotes.length)]).sort((a,b)=>b[2]-a[2]),value=quotes.reduce((s,x)=>s+(+x.total||0),0);return{...base,kpis:[['Quotations',quotes.length,'int'],['Total Value',value,'inr'],['Average Value',quotes.length?value/quotes.length:0,'inr'],['Won Rate',anPct(quotes.filter(x=>x.status==='won').length,quotes.length),'pct'],['Expired',quotes.filter(x=>quotationExpiryState(x)==='expired').length,'int']],columns:[['Status','text'],['Count','int'],['Value','inr'],['Average','inr'],['Share','pct']],rows,insights:[`${quotes.filter(x=>x.status==='submitted').length} submitted quotations await action.`,`${quotes.filter(x=>quotationExpiryState(x)==='expiring').length} quotations expire within seven days.`,`Won value: ${inr(quotes.filter(x=>x.status==='won').reduce((s,x)=>s+(+x.total||0),0))}.`],chart:2};}
+  if(id==='followups'){const g=anGroup(fus,x=>x.channel),done=fus.filter(x=>x.status==='completed'),late=fus.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue'),rows=Object.entries(g).map(([k,a])=>[k,a.length,a.filter(x=>x.status==='completed').length,a.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue').length,anPct(a.filter(x=>x.status==='completed').length,a.length)]).sort((a,b)=>b[1]-a[1]);return{...base,kpis:[['Follow-ups',fus.length,'int'],['Completed',done.length,'int'],['Completion Rate',anPct(done.length,fus.length),'pct'],['Overdue',late.length,'int'],['High Priority Open',fus.filter(x=>x.priority==='high'&&x.status!=='completed').length,'int']],columns:[['Channel','text'],['Total','int'],['Completed','int'],['Overdue','int'],['Completion Rate','pct']],rows,insights:[`${late.length} follow-ups are overdue.`,`Most-used channel: ${rows[0]?.[0]||'None'}.`,`${fus.filter(x=>x.priority==='high'&&x.status!=='completed').length} high-priority actions remain.`],chart:1};}
+  if(id==='clients'){const rows=allClients().map(c=>{const m=clientMetrics(c.name);return[c.name,c.cat||'General',m.leads,m.open,m.openValue,m.quotes,m.fus.filter(x=>x.status!=='completed').length,clientLastActivity(c.name)||''];}).sort((a,b)=>b[4]-a[4]);return{...base,kpis:[['Clients',rows.length,'int'],['Active Clients',rows.filter(x=>x[3]>0).length,'int'],['Pipeline Value',rows.reduce((s,x)=>s+x[4],0),'inr'],['Clients with Quotes',rows.filter(x=>x[5]>0).length,'int']],columns:[['Client','text'],['Industry','text'],['Leads','int'],['Open','int'],['Pipeline Value','inr'],['Quotes','int'],['Open Follow-ups','int'],['Last Activity','date']],rows,insights:[`Top client: ${rows[0]?.[0]||'None'} (${inr(rows[0]?.[4]||0)}).`,`${rows.filter(x=>x[3]===0).length} clients have no open opportunity.`,`${rows.filter(x=>x[6]>0).length} clients require follow-up.`],chart:4};}
+  if(id==='owners'){const g=anGroup(leads,x=>x.person),rows=Object.entries(g).map(([k,a])=>[k,a.length,a.filter(x=>!['won','lost'].includes(x.col)).length,a.reduce((s,x)=>s+(+x.val||0),0),a.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0),a.filter(x=>x.col==='won').length,anPct(a.filter(x=>x.col==='won').length,a.length)]).sort((a,b)=>b[4]-a[4]);return{...base,kpis:[['Owners',rows.length,'int'],['Assigned Leads',leads.length,'int'],['Weighted Forecast',weighted,'inr'],['Average Win Rate',rows.length?rows.reduce((s,x)=>s+x[6],0)/rows.length:0,'pct']],columns:[['Owner','text'],['Assigned','int'],['Open','int'],['Total Value','inr'],['Weighted Forecast','inr'],['Won','int'],['Win Rate','pct']],rows,insights:[`Forecast leader: ${rows[0]?.[0]||'None'} (${inr(rows[0]?.[4]||0)}).`,`${rows.filter(x=>x[2]>3).length} owners manage more than three open opportunities.`,`Assignment coverage is ${anPct(leads.filter(x=>x.person).length,leads.length)}%.`],chart:4};}
+  if(id==='tenders'){const g=anGroup(td,x=>x.stage),rows=Object.entries(g).map(([k,a])=>[k,a.length,a.reduce((s,x)=>s+(+x.value||0),0),a.length?Math.round(a.reduce((s,x)=>s+Math.max(0,Math.round(((x.docs-x.missing)/Math.max(1,x.docs))*100)),0)/a.length):0,a.filter(x=>tenderDays(x)<0&&!['Submitted','Won','Lost'].includes(x.stage)).length]).sort((a,b)=>b[2]-a[2]);return{...base,kpis:[['Tenders',td.length,'int'],['Bid Value',td.reduce((s,x)=>s+(+x.value||0),0),'inr'],['Package Ready',td.filter(x=>!x.missing).length,'int'],['Due in 7 Days',td.filter(x=>tenderDays(x)>=0&&tenderDays(x)<=7).length,'int'],['Overdue',td.filter(x=>tenderDays(x)<0&&!['Submitted','Won','Lost'].includes(x.stage)).length,'int']],columns:[['Stage','text'],['Count','int'],['Bid Value','inr'],['Avg. Readiness','pct'],['Overdue','int']],rows,insights:[`${td.filter(x=>x.missing>0).length} packages have missing documents.`,`Largest stage: ${rows[0]?.[0]||'None'}.`,`Tender win rate is ${anPct(td.filter(x=>x.stage==='Won').length,td.length)}%.`],chart:2};}
+  if(id==='sor'){const rows=sor.map(c=>{const a=c.tests||[],p=a.filter(x=>x.rate!=null),rates=p.map(x=>x.rate);return[c.id,c.name,a.length,p.length,a.length-p.length,p.length?p.reduce((s,x)=>s+x.rate,0)/p.length:0,rates.length?Math.min(...rates):0,rates.length?Math.max(...rates):0,(c.combos?.length||0)+(c.packageRate?1:0)]}),tests=sor.flatMap(x=>x.tests||[]),priced=tests.filter(x=>x.rate!=null);return{...base,kpis:[['Categories',sor.length,'int'],['Tests',tests.length,'int'],['Priced',priced.length,'int'],['On Request',tests.length-priced.length,'int'],['Average Rate',priced.length?priced.reduce((s,x)=>s+x.rate,0)/priced.length:0,'inr']],columns:[['No.','int'],['Category','text'],['Tests','int'],['Priced','int'],['On Request','int'],['Average Rate','inr'],['Minimum','inr'],['Maximum','inr'],['Packages','int']],rows,insights:[`${anPct(priced.length,tests.length)}% of tests have fixed rates.`,`${[...rows].sort((a,b)=>b[2]-a[2])[0]?.[1]||'None'} has the largest catalogue.`,`${rows.reduce((s,x)=>s+x[8],0)} packages are configured.`],chart:2};}
+  const cr=DB.credentials||[],g=anGroup(cr,x=>x.status),rows=Object.entries(g).map(([k,a])=>[k,a.length,a.filter(x=>x.days<0).length,a.filter(x=>x.days>=0&&x.days<=90).length,a.filter(x=>x.verified).length,anPct(a.filter(x=>x.verified).length,a.length)]);return{...base,kpis:[['Credentials',cr.length,'int'],['Verified',cr.filter(x=>x.verified).length,'int'],['Expired',cr.filter(x=>x.days<0).length,'int'],['Expiring ≤90 Days',cr.filter(x=>x.days>=0&&x.days<=90).length,'int'],['Verification Rate',anPct(cr.filter(x=>x.verified).length,cr.length),'pct']],columns:[['Status','text'],['Records','int'],['Expired','int'],['Expiring ≤90d','int'],['Verified','int'],['Verification Rate','pct']],rows,insights:[`${cr.filter(x=>x.days<0).length} expired records require action.`,`${cr.filter(x=>x.days>=0&&x.days<=30).length} expire within 30 days.`,`${cr.filter(x=>!x.verified).length} remain unverified.`],chart:1};
 }
-
-/* stubs for remaining nav that reuse simpler renders */
-VIEWS.projects = VIEWS.enquiries;
-
-function openEnquiryModal() {
-  openModal(`
-    <div class="modal-head"><div class="modal-title">New Enquiry</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
-    <div class="modal-body">
-      <div class="field" id="e-cust"><label>Customer Name <span class="req">*</span></label><input class="input" id="eCust" placeholder="e.g. Adani Infra"><div class="field-err">${I.info}Please enter a customer</div></div>
-      <div class="field"><label>Project</label><input class="input" placeholder="e.g. Port Expansion — Phase 2"></div>
-      <div class="form-grid">
-        <div class="field"><label>Service Category</label><select class="select"><option>Material Testing</option><option>Geotechnical</option><option>NDT</option><option>Calibration</option><option>Inspection</option></select></div>
-        <div class="field"><label>Expected Value</label><input class="input" placeholder="₹"></div>
-      </div>
-      <div class="field"><label>Assigned To</label><select class="select">${DB.staff.map(s=>`<option>${s.name}</option>`).join('')}</select></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitEnquiry()">${I.check}Create Enquiry</button></div>`);
-}
-function submitEnquiry() {
-  const input = document.getElementById('eCust'), field = input.closest('.field');
-  if (!input.value.trim()) { field.classList.add('show-err'); input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 350); return; }
-  closeModal(); toast('Enquiry created', 'Added to CRM pipeline · New stage');
-  logAudit('Create', 'Enquiries', `Enquiry logged — ${input.value.trim()}`);
-}
+function refreshAnalyticsView(){renderAdvancedAnalytics();const c=document.getElementById('canvas');enhanceDateTimeInputs(c);normalizeVisibleDateTimes(c);}
+function setAnalyticsReport(id){analyticsState.report=id;refreshAnalyticsView();}
+function setAnalyticsDate(k,v){const next={...analyticsState,[k]:v,period:'custom'};if(next.from&&next.to&&next.from>next.to){toast('Invalid date range','From date must be before To date.','err');return;}analyticsState=next;refreshAnalyticsView();}
+function analyticsPeriodLabel(){return analyticsState.period==='lifetime'?'Lifetime':`${analyticsState.from?formatAppDate(analyticsState.from):'Beginning'} to ${analyticsState.to?formatAppDate(analyticsState.to):'Today'}`;}
+function renderAdvancedAnalytics(){const c=document.getElementById('canvas');if(!c)return;const r=analyticsReportData(),max=Math.max(1,...r.rows.map(x=>+x[r.chart]||0));c.innerHTML=`${pageHead('Analytics & Reports','User-wise and department-wise performance intelligence with daily, weekly, monthly, yearly and lifetime reporting.',`<button class="btn btn-ghost" onclick="analyticsExportCurrent()">${I.export}Export Current</button><button class="btn btn-ghost" onclick="analyticsExportAll()">${I.document}All Reports</button><button class="btn btn-primary" onclick="analyticsPrintReport()">${I.export}Print / PDF</button>`)}<div class="analytics-period-strip">${ANALYTICS_PERIODS.slice(0,5).map(x=>`<button class="${analyticsState.period===x[0]?'active':''}" onclick="setAnalyticsPeriod('${x[0]}')">${x[1]}</button>`).join('')}<span>${I.cal}${esc(analyticsPeriodLabel())}</span></div><div class="analytics-toolbar card"><div><label>Report</label><select class="select" onchange="setAnalyticsReport(this.value)">${ANALYTICS_REPORTS.map(x=>`<option value="${x[0]}" ${analyticsState.report===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div><div><label>Period</label><select class="select" onchange="setAnalyticsPeriod(this.value)">${ANALYTICS_PERIODS.map(x=>`<option value="${x[0]}" ${analyticsState.period===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div><div><label>From</label><input class="input" type="date" value="${analyticsState.from}" onchange="setAnalyticsDate('from',this.value)"></div><div><label>To</label><input class="input" type="date" value="${analyticsState.to}" onchange="setAnalyticsDate('to',this.value)"></div><div class="analytics-generated">Generated<br><b>${esc(r.generated)}</b></div></div><div class="analytics-report-tabs">${ANALYTICS_REPORTS.map(x=>`<button class="${analyticsState.report===x[0]?'active':''}" onclick="setAnalyticsReport('${x[0]}')">${x[1]}</button>`).join('')}</div><div class="grid dash-grid analytics-kpis">${r.kpis.map(x=>`<div class="col-4"><div class="card card-pad analytics-kpi"><span class="kpi-label">${esc(x[0])}</span><div class="kpi-val tnum">${esc(anFmt(x[1],x[2]))}</div></div></div>`).join('')}</div><div class="grid dash-grid"><div class="col-8"><div class="card card-pad"><div class="card-head"><h3>${esc(r.title)} Distribution</h3><span class="card-sub">${ANALYTICS_PERIODS.find(x=>x[0]===analyticsState.period)?.[1]||'Custom'}</span></div><div class="analytics-bars">${r.rows.slice(0,10).map(x=>`<div class="analytics-bar-row"><div class="analytics-bar-label">${esc(x[0])}</div><div class="analytics-bar-track"><span style="width:${Math.max(2,(+x[r.chart]||0)/max*100)}%"></span></div><div class="analytics-bar-value tnum">${esc(anFmt(x[r.chart],r.columns[r.chart]?.[1]))}</div></div>`).join('')||'<div class="empty"><h4>No data</h4></div>'}</div></div></div><div class="col-4"><div class="card card-pad analytics-insights"><div class="card-head"><h3>Smart Insights</h3></div>${r.insights.map((x,i)=>`<div class="analytics-insight"><span>${i+1}</span><p>${esc(x)}</p></div>`).join('')}</div></div></div><div class="card analytics-detail"><div class="card-pad card-head"><h3>${esc(r.title)} — Detailed Report</h3><span class="card-sub">${r.rows.length} rows · ${esc(analyticsPeriodLabel())}</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr>${r.columns.map(x=>`<th>${esc(x[0])}</th>`).join('')}</tr></thead><tbody>${r.rows.length?r.rows.map(row=>`<tr>${row.map((v,i)=>`<td class="${['inr','int','pct'].includes(r.columns[i]?.[1])?'tnum':''}">${esc(anFmt(v,r.columns[i]?.[1]))}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${r.columns.length}"><div class="empty"><h4>No data in selected period</h4></div></td></tr>`}</tbody></table></div></div>`;}
+VIEWS.analytics=function(){renderAdvancedAnalytics();};
+function analyticsExportCurrent(){const r=analyticsReportData();downloadCSV([[r.title],[`Period ${analyticsPeriodLabel()}`],[],r.columns.map(x=>x[0]),...r.rows],`PTH-${r.id}-${analyticsState.period}-report-${localDateISO()}.csv`);logAudit('Export','Analytics',`${r.title} exported`);}
+function analyticsExportAll(){const rows=[];ANALYTICS_REPORTS.forEach(([id])=>{const r=analyticsReportData(id);rows.push([r.title],r.columns.map(x=>x[0]),...r.rows,[]);});downloadCSV(rows,`PTH-All-Analytics-${localDateISO()}.csv`);logAudit('Export','Analytics','All reports exported');}
+function analyticsPrintReport(){const r=analyticsReportData(),w=window.open('','_blank');if(!w){toast('Pop-up blocked','Allow pop-ups to generate the report.','err');return;}w.document.write(`<!doctype html><html><head><title>${esc(r.title)}</title><style>body{font:12px Arial;margin:25px;color:#17201c}h1{margin:0}.meta{color:#65736c;margin:5px 0 15px}.k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0}.k div{border:1px solid #bec9c2;padding:9px}.k b{display:block;font-size:18px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bec9c2;padding:7px;text-align:left}th{background:#e7efe8}@page{size:A4 landscape;margin:12mm}</style></head><body><h1>${esc(r.title)}</h1><div class="meta">${esc(DB.brand.company)} · ${esc(analyticsPeriodLabel())} · ${esc(r.generated)}</div><div class="k">${r.kpis.map(x=>`<div>${esc(x[0])}<b>${esc(anFmt(x[1],x[2]))}</b></div>`).join('')}</div><table><thead><tr>${r.columns.map(x=>`<th>${esc(x[0])}</th>`).join('')}</tr></thead><tbody>${r.rows.map(row=>`<tr>${row.map((v,i)=>`<td>${esc(anFmt(v,r.columns[i]?.[1]))}</td>`).join('')}</tr>`).join('')}</tbody></table><h3>Smart Insights</h3><ul>${r.insights.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><script>setTimeout(()=>print(),250)<\/script></body></html>`);w.document.close();logAudit('Print','Analytics',`${r.title} (${analyticsState.period}) report generated`);}
 
 /* ============================================================
    CINEMATIC LANDING + BOOT
@@ -1385,7 +552,7 @@ function runCinema(done) {
   cinema.innerHTML = `
     <button class="cinema-skip" id="cinemaSkip">Skip intro →</button>
     <div class="cinema-stage">
-      <div id="cinemaBoard" style="opacity:0;filter:blur(14px);transform:scale(0.86);transition:all 1.4s cubic-bezier(0.22,0.61,0.36,1)">
+      <div id="cinemaBoard" style="opacity:0;filter:blur(14px);transform:scale(0.86);transition:all 0.7s cubic-bezier(0.22,0.61,0.36,1)">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);overflow:hidden">
           <div style="display:flex">
             <div style="width:70px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:14px" id="cinemaSide">
@@ -1413,41 +580,52 @@ function runCinema(done) {
 
   const board = cinema.querySelector('#cinemaBoard');
   const line = cinema.querySelector('#cinemaLine');
-  const finish = () => { cinema.classList.add('done'); setTimeout(() => cinema.remove(), 700); done(); };
+  let cinemaFinished = false;
+  const finish = () => {
+    if (cinemaFinished) return;
+    cinemaFinished = true;
+    cinema.classList.add('done');
+    setTimeout(() => cinema.remove(), 350);
+    done();
+  };
+  cinema.title = 'Click anywhere to skip intro';
+  cinema.addEventListener('click', finish);
   cinema.querySelector('#cinemaSkip').onclick = finish;
 
   // Scene 1: sharpen
   requestAnimationFrame(() => { board.style.opacity = '1'; board.style.filter = 'blur(0)'; board.style.transform = 'scale(1)'; });
-  if (line) { const len = line.getTotalLength(); line.style.strokeDasharray = len; line.style.strokeDashoffset = len; setTimeout(() => { line.style.transition = 'stroke-dashoffset 1000ms ease'; line.style.strokeDashoffset = 0; }, 900); }
+  if (line) { const len = line.getTotalLength(); line.style.strokeDasharray = len; line.style.strokeDashoffset = len; setTimeout(() => { line.style.transition = 'stroke-dashoffset 500ms ease'; line.style.strokeDashoffset = 0; }, 450); }
 
   // Scene 2: sidebar focus — move active item
   setTimeout(() => {
     const sideItems = cinema.querySelectorAll('.csi');
-    sideItems[0].style.cssText = 'width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--text-muted);transition:all 0.5s';
-    sideItems[2].style.cssText = 'width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--black);color:#fff;transition:all 0.5s';
-    cinema.querySelector('#cinemaSide').style.cssText += ';box-shadow:var(--shadow-lg);z-index:3;position:relative;transform:translateX(-4px) scale(1.05);transition:all 0.6s';
-  }, 3200);
+    sideItems[0].style.cssText = 'width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--text-muted);transition:all 0.25s';
+    sideItems[2].style.cssText = 'width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--black);color:#fff;transition:all 0.25s';
+    cinema.querySelector('#cinemaSide').style.cssText += ';box-shadow:var(--shadow-lg);z-index:3;position:relative;transform:translateX(-4px) scale(1.05);transition:all 0.3s';
+  }, 1600);
 
   // Scene 4: float cards
   setTimeout(() => {
     cinema.querySelector('#cinemaSide').style.transform = 'translateX(0) scale(1)';
     board.style.transform = 'scale(1) perspective(1200px) rotateX(6deg)';
-    board.style.transition = 'transform 1.2s cubic-bezier(0.22,0.61,0.36,1)';
-    cinema.querySelectorAll('.cink').forEach((k, i) => { k.style.transition = 'transform 0.8s cubic-bezier(0.22,0.61,0.36,1),box-shadow 0.8s'; setTimeout(() => { k.style.transform = 'translateY(-10px) translateZ(30px)'; k.style.boxShadow = 'var(--shadow-lg)'; }, i * 90); });
-  }, 5200);
+    board.style.transition = 'transform 0.6s cubic-bezier(0.22,0.61,0.36,1)';
+    cinema.querySelectorAll('.cink').forEach((k, i) => { k.style.transition = 'transform 0.4s cubic-bezier(0.22,0.61,0.36,1),box-shadow 0.4s'; setTimeout(() => { k.style.transform = 'translateY(-10px) translateZ(30px)'; k.style.boxShadow = 'var(--shadow-lg)'; }, i * 45); });
+  }, 2600);
 
   // Scene 6: settle + final
   setTimeout(() => {
     board.style.transform = 'scale(1)';
     cinema.querySelectorAll('.cink').forEach(k => { k.style.transform = 'none'; k.style.boxShadow = 'none'; });
-  }, 8200);
-  setTimeout(() => { board.style.transition = 'opacity 0.6s'; board.style.opacity = '0.12'; cinema.querySelector('#cinemaFinal').classList.add('show'); }, 9200);
-  setTimeout(finish, 12500);
+  }, 4100);
+  setTimeout(() => { board.style.transition = 'opacity 0.3s'; board.style.opacity = '0.12'; cinema.querySelector('#cinemaFinal').classList.add('show'); }, 4600);
+  setTimeout(finish, 6250);
 }
 
 function boot() {
   renderShell();
   navigate('overview');
+  updateFollowupBadge();
+  setTimeout(notifyDueFollowups, 1200);
 }
 
 /* Login screen */
@@ -1460,7 +638,7 @@ function renderLogin() {
         <div style="margin-top:auto;position:relative">
           <div style="font-size:32px;font-weight:700;letter-spacing:-0.03em;line-height:1.15;max-width:460px">CRM, Credentials, Accreditation & Certification for ${DB.brand.company}.</div>
           <p style="color:rgba(255,255,255,0.62);margin-top:16px;max-width:420px;font-size:14px">${DB.brand.accredited}. Manage every enquiry, quotation, credential, approval and test certificate — with the full Schedule of Rates built in.</p>
-          <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">${['NABL','ISO/IEC 17025:2017','ISO 9001:2015','310 SOR tests'].map(t=>`<span class="badge" style="background:rgba(232,121,30,0.16);color:#F4A460"><span class="dot" style="background:var(--brand)"></span>${t}</span>`).join('')}</div>
+          <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap">${['NABL','ISO/IEC 17025:2017','ISO 9001:2015',`${(window.SOR||[]).reduce((a,c)=>a+(c.tests?c.tests.length:0),0)} SOR tests`].map(t=>`<span class="badge" style="background:rgba(232,121,30,0.16);color:#F4A460"><span class="dot" style="background:var(--brand)"></span>${t}</span>`).join('')}</div>
         </div>
         <div style="margin-top:32px;color:rgba(255,255,255,0.4);font-size:12px;position:relative">© 2026 ${DB.brand.legal} · Surat, Gujarat · Secure, role-based access</div>
       </div>
@@ -1472,23 +650,33 @@ function renderLogin() {
           <div class="field"><label>Username</label>
             <select class="input" id="loginUser" onchange="loginPickUser()">${DB.users.filter(u=>u.status==='active').map((u,i)=>`<option value="${u.username}" ${i===0?'selected':''}>${u.name} — ${u.role}</option>`).join('')}</select>
           </div>
-          <div class="field"><label>Access mode</label><input class="input" value="Static preview" disabled></div>
+          <div class="field"><label>Password</label><input class="input" type="password" id="loginPass" value="${DEMO_PASSWORD}" autocomplete="current-password"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-secondary)"><span class="toggle on" onclick="this.classList.toggle('on')"></span>Remember me</label><a style="font-size:12.5px;color:var(--primary-dark);font-weight:600">Forgot password?</a></div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign In ${I.arrowR}</button>
           <div style="text-align:center;margin:16px 0;color:var(--text-muted);font-size:12px">or</div>
           <button class="btn btn-ghost" style="width:100%;justify-content:center">${I.shield}Single Sign-On (SSO)</button>
-          <p class="page-desc" style="text-align:center;margin-top:18px">Static preview only. Production sign-in is secured by the Django API.</p>
+          <p class="page-desc" style="text-align:center;margin-top:18px">Users: Hardik · Tushal · Shivang · Jaydeep · Nirav<br>Static preview access only · Production authentication requires a backend</p>
         </div>
       </div>
     </div>`;
 }
 function loginPickUser() {
-  // Static preview: selecting a user changes the role being previewed.
+  const uname = document.getElementById('loginUser').value;
+  const u = DB.users.find(x => x.username === uname);
+  if (u) document.getElementById('loginPass').value = u.password || DEMO_PASSWORD;
 }
 function doLogin() {
   const uname = document.getElementById('loginUser')?.value;
+  const passInput = document.getElementById('loginPass');
+  const password = passInput?.value || '';
   const u = DB.users.find(x => x.username === uname);
-  if (u) { DB.user = { name: u.name, role: u.role, initials: u.initials }; u.lastLogin = nowStamp(); }
+  if (!u || u.status !== 'active' || password !== (u.password || DEMO_PASSWORD)) {
+    toast('Sign-in failed', 'Check the selected user and password.', 'err');
+    passInput?.focus();
+    return;
+  }
+  DB.user = { name: u.name, role: u.role, initials: u.initials };
+  u.lastLogin = nowStamp();
   logAudit('Login', 'Auth', `Signed in as ${DB.user.name} (${DB.user.role})`);
   boot();
   runCinema(() => {});
@@ -1502,5 +690,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Expose for inline handlers
-Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, logAudit, dataManagementCard, backupData, restoreData, confirmResetData, doResetData });
+Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, setTenderFilter, openTenderModal, saveTender, openTenderDrawer, persistTenders, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });
