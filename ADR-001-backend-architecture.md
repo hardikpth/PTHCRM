@@ -1,6 +1,6 @@
 # ADR-001: Central Backend, Database & Security Architecture for PTH CRM
 
-**Status:** Proposed
+**Status:** Accepted — foundation implemented; hosted project configuration pending
 **Date:** 2026-08-02
 **Deciders:** Laboratory Head (Hardik), Quality Manager, IT/vendor
 **Constraints agreed:** Plan-first (design before build); **cloud hosting is acceptable**; the existing front-end is reused as the UI layer.
@@ -212,19 +212,19 @@ audit_events(
 ## Action Items (phased)
 
 **Phase 0 — Design sign-off (this ADR)**
-1. [ ] Approve Option A (Supabase, cloud) and the data model above.
+1. [x] Approve Option A (Supabase, cloud) and the data model above.
 2. [ ] Confirm role→permission matrix and branch/territory rules with management.
 
 **Phase 1 — Foundation**
-3. [ ] Create Supabase project; author schema migrations (tables, FKs, indexes, version/soft-delete).
-4. [ ] Implement audit triggers + hash chain; enable PITR backups.
+3. [ ] Create Supabase project; [x] author schema migrations (tables, FKs, indexes, version/soft-delete).
+4. [x] Implement audit triggers + hash chain; [ ] enable PITR backups after project creation.
 
 **Phase 2 — Security**
 5. [ ] Configure Auth (password, TOTP/OTP, reset, Google/Microsoft SSO, lockout).
 6. [ ] Write & test RLS policies (branch isolation, manager hierarchy, field-level views, shares).
 
 **Phase 3 — Front-end cutover**
-7. [ ] Add `db.js` data-access layer; migrate each module off `localStorage`; ID-ify relationships.
+7. [x] Add transitional shared data-access/sync layer; [ ] finish per-record normalized-table cutover and ID-ify relationships.
 8. [ ] One-time import of existing data; remove demo auth + `?skip=1`.
 
 **Phase 4 — Operations**

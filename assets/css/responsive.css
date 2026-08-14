@@ -1,0 +1,80 @@
+/* Cross-device layout corrections loaded after the main design system. */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, canvas, iframe { max-width: 100%; }
+.canvas, .card, .page-head, .page-head-l, .page-head-r { min-width: 0; }
+.page-head-r, .filter-bar, .analytics-toolbar, .workspace-head { flex-wrap: wrap; }
+.tbl { min-width: 760px; }
+.tbl-wrap { width: 100%; -webkit-overflow-scrolling: touch; }
+.modal-scrim { padding: clamp(8px, 3vw, 24px); }
+.modal { width: min(520px, 100%); }
+.modal-body, .drawer-body { overflow-wrap: anywhere; }
+.quotation-sheet { max-width: 100%; }
+@media (max-width: 1180px) {
+  .builder { grid-template-columns: minmax(220px, .8fr) minmax(0, 2fr); }
+  .builder > :last-child { grid-column: 1 / -1; }
+  .ql-template-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .analytics-toolbar > div { flex: 1 1 180px; min-width: 0; }
+}
+@media (max-width: 900px) {
+  .topbar { min-width: 0; }
+  .topbar > * { flex-shrink: 0; }
+  .breadcrumb, .page-desc { overflow-wrap: anywhere; }
+  .page-head { align-items: flex-start; gap: 12px; }
+  .page-head-r { width: 100%; }
+  .page-head-r .btn { flex: 1 1 auto; justify-content: center; }
+  .filter-bar > * { flex: 1 1 180px; min-width: 0 !important; }
+  .filter-search { width: 100%; flex-basis: 100%; }
+  .stat-strip { overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .stat-chip { flex: 0 0 min(42vw, 190px); scroll-snap-align: start; }
+  .builder { grid-template-columns: 1fr; }
+  .builder > :last-child { grid-column: auto; }
+  .cal-grid { min-width: 680px; }
+  .cal-grid-wrap, .calendar-wrap { overflow-x: auto; }
+  .quotation-table { min-width: 720px; }
+  .surat-map-layout, .mobile-workspace-grid, .site-visit-board { grid-template-columns: 1fr; }
+  .management-approval { grid-template-columns: 1fr; }
+  .workspace-tabs, .seg { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 680px) {
+  :root { --topbar-h: 58px; }
+  .canvas { padding: 14px 12px calc(92px + env(safe-area-inset-bottom)); }
+  .topbar { padding-inline: 10px; }
+  .page-head { display: block; }
+  .page-head-r { display: grid; grid-template-columns: 1fr; margin-top: 12px; }
+  .page-head-r .btn, .workspace-head .btn { width: 100%; }
+  .card, .card-pad { padding: 14px; }
+  .dash-grid { gap: 10px; }
+  .overview-bi-kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bi-number { min-height: 96px; padding: 12px; }
+  .form-grid, .report-field-grid, .permission-row { grid-template-columns: 1fr; }
+  .ql-template-grid { grid-template-columns: 1fr 1fr; }
+  .quotation-sheet { padding: 12px; border-radius: 8px; }
+  .quotation-print-header { margin: -12px -12px 14px; }
+  .quote-identity { grid-template-columns: 1fr !important; }
+  .drawer-head { padding-inline: 16px; }
+  .drawer-body { padding: 16px 14px calc(34px + env(safe-area-inset-bottom)); }
+  .modal-head, .modal-body, .modal-foot { padding-inline: 14px; }
+  .modal-foot { display: grid; grid-template-columns: 1fr; }
+  .modal-foot .btn { width: 100%; justify-content: center; }
+  .toast-wrap { left: 10px; right: 10px; width: auto; }
+  .toast { width: 100%; min-width: 0; }
+  .login-form-side { padding: 24px 16px; align-items: flex-start; }
+  .login-card { max-width: none; }
+  .surat-map, .surat-google-map, .surat-map-config { min-height: 280px; height: 300px; }
+  .analytics-period-strip > span { margin-left: 0; }
+  .analytics-period-strip { flex-wrap: nowrap; }
+  .mobile-nav { overflow-x: auto; justify-content: flex-start; gap: 3px; }
+  .mobile-nav a { flex: 1 0 58px; padding-inline: 5px; }
+}
+@media (max-width: 390px) {
+  .overview-bi-kpis, .workspace-kpis, .surat-map-stats { grid-template-columns: 1fr; }
+  .ql-template-grid { grid-template-columns: 1fr; }
+  .kpi-carousel > .card { flex-basis: 88%; }
+  .stat-chip { flex-basis: 72vw; }
+  .btn { padding-inline: 10px; }
+  .mobile-nav a { font-size: 9px; }
+}
+@media (hover: none) and (pointer: coarse) {
+  button, .btn, .mini-act, .icon-btn, input, select { min-height: 44px; }
+  .nav-item, .drawer-tab { min-height: 44px; }
+}

@@ -3105,12 +3105,22 @@ function loginPickUser() {
   const u = DB.users.find(x => x.username === uname);
   if (u) document.getElementById('loginPass').value = u.password || DEMO_PASSWORD;
 }
-function doLogin() {
+async function doLogin() {
   const uname = document.getElementById('loginUser')?.value;
   const passInput = document.getElementById('loginPass');
   const password = passInput?.value || '';
   const u = DB.users.find(x => x.username === uname);
-  if (!u || u.status !== 'active' || password !== (u.password || DEMO_PASSWORD)) {
+  if (window.PTHBackend?.enabled) {
+    try {
+      await window.PTHBackend.signIn(u?.email || `${uname}@pramukhtesthouse.com`, password);
+    } catch (error) {
+      toast('Secure sign-in failed', error.message || 'Check your email and password.', 'err');
+      passInput?.focus();
+      return;
+    }
+    location.reload();
+    return;
+  } else if (!u || u.status !== 'active' || password !== (u.password || DEMO_PASSWORD)) {
     toast('Sign-in failed', 'Check the selected user and password.', 'err');
     passInput?.focus();
     return;
@@ -3125,7 +3135,8 @@ function doLogin() {
 /* ---------- Init ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
-  if (params.get('skip') === '1') { boot(); return; }
+  if (window.PTHBackend?.enabled && window.PTHBackend.hasSession()) { boot(); return; }
+  if (params.get('skip') === '1' && !window.PTHBackend?.enabled) { boot(); return; }
   renderLogin();
 });
 
