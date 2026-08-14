@@ -1,0 +1,14 @@
+{
+  "name": "pth-crm",
+  "version": "1.2.0",
+  "private": true,
+  "description": "PTH CRM — Pramukh Test House · Laboratory CRM & Compliance Management (front-end prototype)",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "serve": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
