@@ -58,6 +58,29 @@ const I = {
   rate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16v16H4z"/><path d="M8 9h4M8 13h8M8 17h6"/><circle cx="16" cy="9" r="1.4"/></svg>',
 };
 
+/* ---------- Persistent application configuration ---------- */
+const USER_KEY = 'pth_users_v1';
+const BRAND_KEY = 'pth_brand_v1';
+const SCOPE_KEY = 'pth_scopes_v1';
+(function loadApplicationConfiguration() {
+  try {
+    const users = JSON.parse(localStorage.getItem(USER_KEY));
+    if (Array.isArray(users) && users.length) DB.users = users;
+  } catch (e) {}
+  try {
+    const brand = JSON.parse(localStorage.getItem(BRAND_KEY));
+    if (brand && typeof brand === 'object' && !Array.isArray(brand)) DB.brand = { ...DB.brand, ...brand };
+  } catch (e) {}
+  try {
+    const scopes = JSON.parse(localStorage.getItem(SCOPE_KEY));
+    if (Array.isArray(scopes)) DB.scopes = scopes;
+  } catch (e) {}
+  if (DB.brand.accent) document.documentElement.style.setProperty('--primary', DB.brand.accent);
+})();
+function persistUsers() { try { localStorage.setItem(USER_KEY, JSON.stringify(DB.users || [])); return true; } catch (e) { toast('Unable to save users', 'Browser storage is unavailable or full.', 'err'); return false; } }
+function persistBranding() { try { localStorage.setItem(BRAND_KEY, JSON.stringify(DB.brand || {})); return true; } catch (e) { toast('Unable to save branding', 'Browser storage is unavailable or full.', 'err'); return false; } }
+function persistScopes() { try { localStorage.setItem(SCOPE_KEY, JSON.stringify(DB.scopes || [])); return true; } catch (e) { toast('Unable to save scopes', 'Browser storage is unavailable or full.', 'err'); return false; } }
+
 /* ---------- Brand logo: real PTH artwork if provided, else built-in SVG mark ---------- */
 function brandMark() {
   window.__logoSVG = I.logo;
@@ -978,7 +1001,7 @@ function saveLead(id) {
   if (id) { const l = DB.pipeline.leads.find(x => x.id === id); Object.assign(l, data, {updatedAt:new Date().toISOString()}); savedLead=l; logAudit('Edit', 'CRM Pipeline', `${cust} lead updated`); toast('Lead updated', `${cust} · ${data.cat}`); }
   else { savedLead={ id: nextLeadId(), follow: '—', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), ...data };DB.pipeline.leads.push(savedLead); logAudit('Create', 'CRM Pipeline', `${cust} lead created`); toast('Lead created', `${cust} · ${DB.pipeline.columns.find(x => x.id === data.col)?.name}`); }
   persistPipeline(); closeModal();
-  if(!id)crmRunAutomation('lead_created',savedLead);crmRunAutomation('lead_saved',savedLead);
+  if(!id){crmRunAutomation('lead_created',savedLead);enquiryFilter={search:'',category:'all',stage:'all',owner:'all'};}crmRunAutomation('lead_saved',savedLead);
   if (state.route === 'pipeline') VIEWS.pipeline(document.getElementById('canvas')); else if (state.route === 'enquiries') VIEWS.enquiries(document.getElementById('canvas'));
 }
 function deleteLead(id) {
@@ -1172,7 +1195,7 @@ function saveFollowup(id = '') {
   const record = { id:id || nextFollowupId(), leadId:document.getElementById('fuLead').value, quoteNumber:document.getElementById('fuQuotation').value, customer, phone:document.getElementById('fuPhone').value.trim(), email:document.getElementById('fuEmail').value.trim(), subject, due, time:document.getElementById('fuTime').value, channel:document.getElementById('fuChannel').value, assignee:document.getElementById('fuAssignee').value, priority:document.getElementById('fuPriority').value, notes:document.getElementById('fuNotes').value.trim(), status:'pending', updatedAt:new Date().toISOString() };
   const index = followups.findIndex(f => f.id === id); if (index >= 0) record.status = followups[index].status;
   if (index >= 0) followups[index] = { ...followups[index], ...record }; else followups.push(record);
-  persistFollowups(); closeModal(); toast(index >= 0 ? 'Follow-up updated' : 'Follow-up created', `${customer} · ${formatFollowupDate(due)}`); logAudit(index >= 0 ? 'Update' : 'Create', 'Follow-ups', `${record.id} · ${customer} · ${subject}`); (VIEWS[followupReturnRoute]||VIEWS.followups)(document.getElementById('canvas'));
+  persistFollowups(); if(index<0)followupFilter={search:'',status:'open',priority:'all',assignee:'all'}; closeModal(); toast(index >= 0 ? 'Follow-up updated' : 'Follow-up created', `${customer} · ${formatFollowupDate(due)}`); logAudit(index >= 0 ? 'Update' : 'Create', 'Follow-ups', `${record.id} · ${customer} · ${subject}`); (VIEWS[followupReturnRoute]||VIEWS.followups)(document.getElementById('canvas'));
 }
 // Detail drawer — the primary view of a single follow-up with all its actions.
 function openFollowupDrawer(id) {
@@ -1506,7 +1529,7 @@ function openCredDrawer(id) {
 function openCredentialModal(id = '') {
   const record = id ? DB.credentials.find(x => x.id === id) : null;
   const selected = (value, expected) => value === expected ? ' selected' : '';
-  const responsiblePeople = [...new Set([record?.person, ...DB.staff.map(s => s.name)].filter(Boolean))];
+  const responsiblePeople = [...new Set([record?.person, DB.user.name, ...DB.staff.map(s => s.name), ...(DB.users||[]).map(u=>u.name)].filter(Boolean))];
   openModal(`
     <div class="modal-head"><div class="modal-title">${record ? 'Edit' : 'Add'} Credential</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
     <div class="modal-body">
@@ -1545,6 +1568,7 @@ function submitCredential() {
   const value = { ...(existing || {}), id: id || `CR-${String(nextNumber).padStart(4, '0')}`, name: cn, dataCategory, cat: documentType, auth: existing?.auth || 'Pending classification', cert: document.getElementById('cCert').value.trim(), branch: document.getElementById('cBranch').value, issue: document.getElementById('cIssue').value || localDateISO(), expiry: expiry || '—', days, person: document.getElementById('cPerson').value, status: days < 0 ? 'expired' : (existing?.status || 'review'), verified: existing?.verified || false, conf: existing?.conf || 'Internal', updatedAt: new Date().toISOString() };
   if (existing) Object.assign(existing, value); else DB.credentials.push(value);
   persistCredentials();
+  if(!existing){credDataCategory='all';credFilters={status:'',branch:'',authority:'',person:''};}
   closeModal();
   navigate('credentials');
   toast(existing ? 'Credential updated' : 'Credential saved', existing ? 'Repository and expiry tracker updated' : 'Added to repository and expiry tracker');
@@ -1741,12 +1765,12 @@ VIEWS.tenders = function (c) {
 };
 function setTenderFilter(key,value){tenderFilter[key]=value;VIEWS.tenders(document.getElementById('canvas'));}
 function openTenderModal(id=''){const t=DB.tenders.find(x=>x.id===id),rec=t||{id:`T-${String(Math.max(0,...DB.tenders.map(x=>+String(x.id).replace(/\D/g,'')||0))+1).padStart(4,'0')}`,title:'',client:'',value:0,due:localDateISO(),stage:'Preparation',docs:0,missing:0};openModal(`<div class="modal-head"><div class="modal-title">${t?'Edit':'Add'} Tender</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="form-grid"><div class="field"><label>Tender ID</label><input class="input" id="tdId" value="${esc(rec.id)}" ${t?'readonly':''}></div><div class="field"><label>Deadline</label><input class="input" id="tdDue" type="date" value="${esc(rec.due)}"></div></div><div class="field"><label>Title <span class="req">*</span></label><input class="input" id="tdTitle" value="${esc(rec.title)}"></div><div class="field"><label>Client <span class="req">*</span></label><input class="input" id="tdClient" value="${esc(rec.client)}"></div><div class="form-grid"><div class="field"><label>Estimated Value</label><input class="input" id="tdValue" type="number" min="0" value="${rec.value||0}"></div><div class="field"><label>Stage</label><select class="select" id="tdStage">${['Identified','Prequalification','Preparation','Package Ready','Submitted','Won','Lost'].map(s=>`<option ${rec.stage===s?'selected':''}>${s}</option>`).join('')}</select></div></div><div class="form-grid"><div class="field"><label>Required Documents</label><input class="input" id="tdDocs" type="number" min="0" value="${rec.docs||0}"></div><div class="field"><label>Missing Documents</label><input class="input" id="tdMissing" type="number" min="0" value="${rec.missing||0}"></div></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveTender('${esc(id)}')">${I.check}Save Tender</button></div>`);}
-function saveTender(editId=''){const id=document.getElementById('tdId').value.trim(),title=document.getElementById('tdTitle').value.trim(),client=document.getElementById('tdClient').value.trim(),due=document.getElementById('tdDue').value;if(!id||!title||!client||!due){toast('Tender details required','ID, title, client and deadline are required.','err');return;}const docs=Math.max(0,+document.getElementById('tdDocs').value||0),missing=Math.min(docs,Math.max(0,+document.getElementById('tdMissing').value||0)),record={id,title,client,due,value:Math.max(0,+document.getElementById('tdValue').value||0),stage:document.getElementById('tdStage').value,docs,missing,updatedAt:new Date().toISOString()};const idx=DB.tenders.findIndex(x=>x.id===editId);if(idx>=0)DB.tenders[idx]={...DB.tenders[idx],...record};else{if(DB.tenders.some(x=>x.id===id)){toast('Tender ID exists',id,'err');return;}DB.tenders.push(record);}persistTenders();closeModal();toast(idx>=0?'Tender updated':'Tender added',`${id} · ${client}`);logAudit(idx>=0?'Edit':'Create','Tenders',`${id} · ${title}`);VIEWS.tenders(document.getElementById('canvas'));}
+function saveTender(editId=''){const id=document.getElementById('tdId').value.trim(),title=document.getElementById('tdTitle').value.trim(),client=document.getElementById('tdClient').value.trim(),due=document.getElementById('tdDue').value;if(!id||!title||!client||!due){toast('Tender details required','ID, title, client and deadline are required.','err');return;}const docs=Math.max(0,+document.getElementById('tdDocs').value||0),missing=Math.min(docs,Math.max(0,+document.getElementById('tdMissing').value||0)),record={id,title,client,due,value:Math.max(0,+document.getElementById('tdValue').value||0),stage:document.getElementById('tdStage').value,docs,missing,updatedAt:new Date().toISOString()};const idx=DB.tenders.findIndex(x=>x.id===editId);if(idx>=0)DB.tenders[idx]={...DB.tenders[idx],...record};else{if(DB.tenders.some(x=>x.id===id)){toast('Tender ID exists',id,'err');return;}DB.tenders.push(record);tenderFilter={search:'',stage:'all',deadline:'all'};}persistTenders();closeModal();toast(idx>=0?'Tender updated':'Tender added',`${id} · ${client}`);logAudit(idx>=0?'Edit':'Create','Tenders',`${id} · ${title}`);VIEWS.tenders(document.getElementById('canvas'));}
 function openTenderDrawer(id){const t=DB.tenders.find(x=>x.id===id);if(!t)return;const days=tenderDays(t),ready=Math.max(0,Math.round(((t.docs-t.missing)/Math.max(1,t.docs))*100));openDrawer(`<div class="drawer-head"><button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button><div class="page-desc">${esc(t.id)} · ${esc(t.client)}</div><div style="font-size:19px;font-weight:600;margin-top:4px">${esc(t.title)}</div></div><div class="drawer-body"><div class="kv"><span class="k">Bid Value</span><span class="v">${inr(t.value)}</span></div><div class="kv"><span class="k">Deadline</span><span class="v">${formatFollowupDate(t.due)} · ${days<0?`${Math.abs(days)} days overdue`:`${days} days left`}</span></div><div class="kv"><span class="k">Stage</span><span class="v">${esc(t.stage)}</span></div><div class="kv"><span class="k">Readiness</span><span class="v">${ready}%</span></div><div class="kv"><span class="k">Documents</span><span class="v">${t.docs-t.missing}/${t.docs} complete</span></div><div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="flex:1;justify-content:center" onclick="closeDrawer();openTenderModal('${esc(t.id)}')">${I.edit}Update</button><button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeDrawer();navigate('package')">${I.document}Package</button></div><button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px" onclick="closeDrawer();newFollowupForCustomer(${esc(JSON.stringify(t.client))})">${I.clock}Schedule Follow-up</button></div>`);}
 
 /* ---------- ENQUIRIES ---------- */
 let enquiryFilter={search:'',category:'all',stage:'all',owner:'all'};
-function shownEnquiries(){const term=enquiryFilter.search.toLowerCase();return DB.pipeline.leads.filter(l=>(enquiryFilter.category==='all'||l.cat===enquiryFilter.category)&&(enquiryFilter.stage==='all'||l.col===enquiryFilter.stage)&&(enquiryFilter.owner==='all'||l.person===enquiryFilter.owner)&&(!term||`${l.id} ${l.cust} ${l.proj} ${l.cat}`.toLowerCase().includes(term))).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));}
+function shownEnquiries(){const term=enquiryFilter.search.toLowerCase();return DB.pipeline.leads.filter(l=>canViewCrmRecord(l)&&(enquiryFilter.category==='all'||l.cat===enquiryFilter.category)&&(enquiryFilter.stage==='all'||l.col===enquiryFilter.stage)&&(enquiryFilter.owner==='all'||l.person===enquiryFilter.owner)&&(!term||`${l.id} ${l.cust} ${l.proj} ${l.cat}`.toLowerCase().includes(term))).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));}
 VIEWS.enquiries = function (c) {
   const list=shownEnquiries(),cats=[...new Set(DB.pipeline.leads.map(l=>l.cat))].sort(),owners=[...new Set(DB.pipeline.leads.map(l=>l.person))].sort(),open=DB.pipeline.leads.filter(l=>!['won','lost'].includes(l.col)),noAction=open.filter(l=>!followups.some(f=>f.leadId===l.id&&f.status!=='completed')).length,high=open.filter(l=>l.prio==='high').length;
   c.innerHTML = `${pageHead('Enquiries', 'Qualification, ownership, next-action control and quotation conversion.', `<button class="btn btn-ghost" onclick="exportEnquiries()">${I.export}Export</button><button class="btn btn-ghost" onclick="openDataImport('enquiries')">${I.upload}Bulk Import</button><button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Enquiry</button>`)}<div class="stat-strip enter"><div class="stat-chip"><div class="sc-val">${DB.pipeline.leads.length}</div><div class="sc-label">Total enquiries</div></div><div class="stat-chip"><div class="sc-val">${open.length}</div><div class="sc-label">Open</div></div><div class="stat-chip"><div class="sc-val" style="color:var(--danger)">${high}</div><div class="sc-label">High priority</div></div><div class="stat-chip"><div class="sc-val" style="color:${noAction?'var(--warning)':'var(--primary-dark)'}">${noAction}</div><div class="sc-label">Without next action</div></div></div>
@@ -1905,7 +1929,7 @@ function saveClient(originalName) {
   const existing = findClient(originalName || name);
   const rec = { name, cat: document.getElementById('clCat').value, contact: document.getElementById('clContact').value.trim(), phone: document.getElementById('clPhone').value.trim(), email: document.getElementById('clEmail').value.trim(), gst: document.getElementById('clGst').value.trim(), address: document.getElementById('clAddress').value.trim(), notes: document.getElementById('clNotes').value.trim(), customFields:{...(existing?.customFields||{}),client:collectCustomFields('client')} };
   if (existing) Object.assign(existing, rec); else DB.customers.push(rec);
-  persistClients(); closeModal();
+  persistClients(); if(!existing)clientFilter={search:'',cat:'all',status:'all'}; closeModal();
   toast(existing ? 'Client updated' : 'Client added', `${name} · ${rec.cat}`); logAudit(existing ? 'Edit' : 'Create', 'Clients', `${name} ${existing ? 'updated' : 'added'}`);
   if (state.route === 'customers') VIEWS.customers(document.getElementById('canvas'));
 }
@@ -2024,6 +2048,7 @@ VIEWS.quotations = function(c){
     <div class="card enter"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Quotation No.</th><th>Date</th><th>Client</th><th>Line Items</th><th>Total incl. GST</th><th>Status</th><th></th></tr></thead><tbody id="quotationRegister"></tbody></table></div></div>`; renderQuotationRegister('');
 };
 function setQuotationFilter(key,value){quotationFilter[key]=value;renderQuotationRegister();}
+function resetQuotationFilters(){quotationFilter={search:'',status:'all',validity:'all'};}
 function renderQuotationRegister(search){ const body=document.getElementById('quotationRegister'); if(!body)return;if(search!=null)quotationFilter.search=search;const term=quotationFilter.search.toLowerCase(); const rows=savedQuotations.filter(q=>canViewCrmRecord(q)&&(quotationFilter.status==='all'||q.status===quotationFilter.status)&&(quotationFilter.validity==='all'||quotationExpiryState(q)===quotationFilter.validity)&&(!term||`${q.number} ${q.customer} ${q.status}`.toLowerCase().includes(term))).sort((a,b)=>b.number.localeCompare(a.number)); body.innerHTML=rows.length?rows.map(q=>{const validity=quotationExpiryState(q);return `<tr onclick="openQuotationDrawer('${esc(q.number)}')"><td><div class="cell-strong tnum">${esc(q.number)}</div><div class="page-desc">Valid to ${formatFollowupDate(quotationValidUntil(q))}</div></td><td class="cell-dim tnum">${formatFollowupDate(q.date)}</td><td class="cell-strong">${esc(q.customer)}</td><td class="tnum">${q.lines}</td><td class="tnum cell-strong">${maskFinancial(q.total||0)}</td><td>${statusBadge(q.status)} ${validity==='expired'?'<span class="badge badge-expired">Expired</span>':validity==='expiring'?'<span class="badge badge-expiring">Expiring</span>':''}</td><td onclick="event.stopPropagation()"><div class="row-actions quotation-actions"><button class="mini-act" onclick="openQuotationDrawer('${esc(q.number)}')" title="Open">${I.eye}</button><button class="mini-act" onclick="newFollowupForQuote('${esc(q.number)}')" title="Follow-up">${I.clock}</button><button class="mini-act" onclick="duplicateQuotation('${esc(q.number)}')" title="Duplicate / revise">${I.copy||I.plus}</button><button class="mini-act" onclick="modifyQuotation('${esc(q.number)}')" title="Modify">${I.edit}</button><button class="mini-act" onclick="openQuotationSend('${esc(q.number)}')" title="Print / Send">${I.export}</button><button class="mini-act danger" onclick="deleteQuotation('${esc(q.number)}')" title="Delete">${I.x}</button></div></td></tr>`}).join(''):`<tr><td colspan="7"><div class="empty"><h4>No quotations found</h4></div></td></tr>`; }
 function updateQuotationStatus(number,status){const q=savedQuotations.find(x=>x.number===number);if(!q)return;if(['approval_pending','approved','approval_rejected'].includes(q.status)){toast('Controlled quotation status','Use the CRM Intelligence approval inbox or create a revision.','err');return;}q.status=status;q.statusUpdatedAt=new Date().toISOString();persistQuotations();closeDrawer();toast('Quotation status updated',`${number} · ${status}`);logAudit('Status Change','Quotations',`${number} → ${status}`);VIEWS.quotations(document.getElementById('canvas'));}
 function editableQuotationItems(q){
@@ -2092,7 +2117,7 @@ function saveQuotation() {
   const record={ number, customer, kindAttention:document.getElementById('qKindAttention')?.value.trim()||'', representative, categoryHeading:quotationCategoryHeading(), date:previous?.date||localDateISO(), validUntil:previous?.validUntil||localDateISO(validDate), status:previous?.status||'review', createdBy:previous?.createdBy||DB.user.name, updatedAt:new Date().toISOString(), lines:quoteLines.length, total:totals.total, discount:quoteDiscountPct, terms:quoteTermsText, items:quoteLines.map(item=>({...item})) };
   if(existing>=0)savedQuotations[existing]={...savedQuotations[existing],...record}; else savedQuotations.push(record);
   if(previousSnapshot)captureQuotationRevision(previousSnapshot,savedQuotations[existing]);
-  persistQuotations();crmRunAutomation('quotation_saved',savedQuotations.find(q=>q.number===number)||record); toast('Quotation saved', `${number} · ₹${totals.total.toLocaleString('en-IN')} incl. GST`); logAudit(existing>=0?'Edit':'Create','Quotations',`${number} saved for ${customer}`); navigate('quotations');
+  persistQuotations();crmRunAutomation('quotation_saved',savedQuotations.find(q=>q.number===number)||record); resetQuotationFilters(); toast('Quotation saved', `${number} · ₹${totals.total.toLocaleString('en-IN')} incl. GST`); logAudit(existing>=0?'Edit':'Create','Quotations',`${number} saved for ${customer}`); navigate('quotations');
 }
 function modifyQuotation(number){ const q=savedQuotations.find(item=>item.number===number); if(!q)return;if(q.status==='approval_pending'){toast('Approval pending','This quotation cannot be modified until the commercial decision is recorded.','err');return;}if(q.status==='approved'){toast('Approved version is locked','A revision has been created so the approved version remains unchanged.','info');duplicateQuotation(number);return;} const legacy=!q.items?.length; editingQuotationNumber=q.number; editingQuotationCustomer=q.customer; quoteKindAttention=q.kindAttention||''; quoteDiscountPct=legacy?0:(q.discount||0); quoteLines=editableQuotationItems(q).map(item=>{const l={...item}; if(l.disc==null) l.disc=(!l.onReq&&quoteDiscountPct>0)?quoteDiscountPct:0; return l;}); quoteTermsText=q.terms||QUOTE_TERMS.material; navigate('createquotation'); if(legacy)toast('Legacy quotation reconstructed','Review the lump-sum scope line before saving or issuing this quotation.','info'); }
 function deleteQuotation(number){ const q=savedQuotations.find(item=>item.number===number); if(!q)return; openModal(`<div class="modal-head"><div class="modal-title">Delete Quotation</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(number)}</b> for ${esc(q.customer)}? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteQuotation('${esc(number)}')">Delete</button></div>`); }
@@ -2611,7 +2636,7 @@ VIEWS.settings = function (c) {
         <div class="card card-pad enter" style="margin-bottom:16px"><div class="card-head"><h3>Product Branding</h3><div class="card-sub" style="margin-left:auto">Configurable identity</div></div>
           <div class="form-grid" style="margin-top:12px"><div class="field"><label>Product Name</label><input class="input" id="setName" value="${DB.brand.name}"></div><div class="field"><label>Company</label><input class="input" id="setCompany" value="${DB.brand.company}"></div></div>
           <div class="field"><label>Logo image URL <span style="color:var(--text-muted);font-weight:400">— e.g. assets/img/logo.png (leave blank to use the built-in mark)</span></label><input class="input" id="setLogo" value="${DB.brand.logoUrl || ''}" placeholder="assets/img/logo.png"></div>
-          <div class="field"><label>Tagline</label><input class="input" value="${DB.brand.tagline}"></div>
+          <div class="field"><label>Tagline</label><input class="input" id="setTagline" value="${DB.brand.tagline}"></div>
           <div class="field"><label>Accent Colour <span style="color:var(--text-muted);font-weight:400">— PTH orange or lab lime</span></label><div class="swatch-row">${['#E8791E','#9DDB23','#22C55E','#3F8CFF','#8B5CF6','#F59E0B','#EF4444','#14B8A6'].map((col,i)=>`<div class="swatch ${i===1?'on':''}" style="background:${col}" onclick="setAccent('${col}',this)"></div>`).join('')}</div></div>
           <button class="btn btn-primary" onclick="applyBranding()">${I.check}Save Branding</button>
         </div>
@@ -2636,11 +2661,13 @@ VIEWS.settings = function (c) {
   c.querySelectorAll('.settings-nav a').forEach(a => a.onclick = () => { c.querySelectorAll('.settings-nav a').forEach(x => x.classList.remove('active')); a.classList.add('active'); });
   previewQuotationLayout();
 };
-function setAccent(col, el) { document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on')); el.classList.add('on'); document.documentElement.style.setProperty('--primary', col); }
+function setAccent(col, el) { document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on')); el.classList.add('on'); DB.brand.accent=col; document.documentElement.style.setProperty('--primary', col); }
 function applyBranding() {
   DB.brand.name = document.getElementById('setName').value || DB.brand.name;
   DB.brand.company = document.getElementById('setCompany').value || DB.brand.company;
   DB.brand.logoUrl = document.getElementById('setLogo').value.trim();
+  DB.brand.tagline = document.getElementById('setTagline').value.trim();
+  persistBranding();
   renderShell(); navigate('settings');
   toast('Branding updated', 'Logo and product identity applied across the app');
   logAudit('Edit', 'Settings', `Branding updated — product name "${DB.brand.name}"`);
@@ -2759,6 +2786,7 @@ function saveUser() {
     toast('User created', `${name} · ${role}`);
     logAudit('Create', 'User Management', `User ${name} (${role}) created`);
   }
+  persistUsers();
   closeModal();
   renderUsersTable(document.getElementById('userSearch')?.value || '');
   // refresh stat strip counts
@@ -2767,6 +2795,7 @@ function saveUser() {
 function toggleUserStatus(id) {
   const u = DB.users.find(x => x.id === id);
   u.status = u.status === 'active' ? 'disabled' : 'active';
+  persistUsers();
   renderUsersTable(document.getElementById('userSearch')?.value || '');
   toast(u.status === 'active' ? 'User enabled' : 'User disabled', `${u.name} can ${u.status === 'active' ? 'now sign in' : 'no longer sign in'}`, u.status === 'active' ? 'ok' : 'info');
   logAudit(u.status === 'active' ? 'Enable' : 'Disable', 'User Management', `User ${u.name} ${u.status === 'active' ? 'enabled' : 'disabled'}`);
@@ -2781,6 +2810,7 @@ function deleteUser(id) {
 function confirmDeleteUser(id) {
   const u = DB.users.find(x => x.id === id);
   DB.users = DB.users.filter(x => x.id !== id);
+  persistUsers();
   closeModal();
   VIEWS.users(document.getElementById('canvas'));
   toast('User deleted', `${u.name} removed`, 'info');
@@ -2871,6 +2901,7 @@ function submitEnquiry() {
   const duplicates=crmDuplicateLeads(cust,data.proj);if(duplicates.length){crmPendingLeadData=data;openModal(`<div class="modal-head"><div class="modal-title">Possible Duplicate Enquiry</div><button class="icon-btn drawer-close" onclick="crmPendingLeadData=null;closeModal()">${I.x}</button></div><div class="modal-body"><p>${duplicates.length} similar existing record${duplicates.length===1?' was':'s were'} found.</p>${duplicates.map(x=>`<div class="kv"><span class="v"><b>${esc(x.id)} · ${esc(x.cust)}</b><small style="display:block">${esc(x.proj)}</small></span></div>`).join('')}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="crmPendingLeadData=null;closeModal()">Cancel</button><button class="btn btn-primary" onclick="crmConfirmDuplicateLead()">Create Separate Enquiry</button></div>`);return;}
   const lead = { id: nextLeadId(), follow: '—',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...data };
   DB.pipeline.leads.push(lead); persistPipeline();
+  enquiryFilter={search:'',category:'all',stage:'all',owner:'all'};
   crmRunAutomation('lead_created',lead);crmRunAutomation('lead_saved',lead);
   closeModal(); toast('Enquiry created', `${cust} · added to pipeline (New)`);
   logAudit('Create', 'Enquiries', `Enquiry logged — ${cust} (${lead.id})`);
@@ -3098,6 +3129,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderLogin();
 });
 
-// Expose for inline handlers
+// Expose for inline handlers and cross-module import persistence.
+Object.assign(window, { persistUsers, persistBranding, persistCredentials, persistScopes, resetQuotationFilters });
 Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, setTenderFilter, openTenderModal, saveTender, openTenderDrawer, persistTenders, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });

@@ -238,6 +238,7 @@ function runPdfBulkImport(module) {
 function addPdfModuleRecord(module, record) {
   if (module === 'credentials') {
     DB.credentials.push({ id: `CR-${String(DB.credentials.length + 1).padStart(4, '0')}`, name: record.name, dataCategory: record.dataCategory, cat: 'Imported PDF', auth: 'Pending classification', cert: record.filename, branch: DB.branches[0], issue: new Date().toISOString().slice(0, 10), expiry: '—', days: 9999, person: DB.user.name, status: 'review', verified: false, conf: 'Internal', documentUrl: record.url });
+    if (window.persistCredentials) window.persistCredentials();
   } else if (module === 'approvals') {
     DB.approvalWorkflow.push({ name: record.name, auth: 'Imported PDF', stage: 0, service: record.filename, person: DB.user.name, documentUrl: record.url });
   } else if (module === 'certifications') {
@@ -245,6 +246,7 @@ function addPdfModuleRecord(module, record) {
   } else if (module === 'scope') {
     DB.scopes ||= [];
     DB.scopes.push({ name: record.name, standards: 'See imported PDF', status: 'review', documentUrl: record.url });
+    if (window.persistScopes) window.persistScopes();
   }
 }
 
