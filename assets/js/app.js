@@ -1916,17 +1916,7 @@ function renderClients() {
         <td class="tnum" style="text-align:right">${m.openFus} open / ${m.fus.length}</td>
         <td class="cell-dim tnum">${la ? formatFollowupDate(la) : '—'}</td>
         <td><span class="badge ${st.cls}"><span class="dot"></span>${st.label}</span></td>
-        <td class="client-actions-cell" onclick="event.stopPropagation()"><div class="client-row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openClientDrawer(${nameJson})">${I.customer}View details</button>
-          <button class="btn btn-ghost btn-sm" onclick="openClientModal(${nameJson})">${I.edit}Modify</button>
-          <button class="btn btn-primary btn-sm" onclick="startNewQuotation(${nameJson})">${I.quote}Create quotation</button>
-          <button class="btn btn-ghost btn-sm" onclick="newFollowupForCustomer(${nameJson})">${I.clock}Follow-up</button>
-          <button class="btn btn-ghost btn-sm" onclick="shareClientContact(${nameJson})">${I.export}Send contact details</button>
-          <button class="btn btn-ghost btn-sm" onclick="launchClientChannel(${nameJson},'call')">Call</button>
-          <button class="btn btn-ghost btn-sm" onclick="launchClientChannel(${nameJson},'email')">Email</button>
-          <button class="btn btn-ghost btn-sm" onclick="launchClientChannel(${nameJson},'whatsapp')">WhatsApp</button>
-          <button class="btn btn-ghost btn-sm client-delete-action" onclick="deleteClient(${nameJson})">${I.x}Delete</button>
-        </div></td>
+        <td class="client-actions-cell" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm client-options-btn" onclick="openClientActions(${nameJson})">Options ${I.chevD}</button></td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
     return;
@@ -2014,6 +2004,22 @@ function launchClientChannel(name, kind) {
 function clientContactText(name) {
   const c = findClient(name) || allClients().find(x => String(x.name).toLowerCase() === String(name).toLowerCase()) || { name };
   return [c.name, c.contact && `Contact: ${c.contact}`, c.phone && `Phone: ${c.phone}`, c.email && `Email: ${c.email}`, c.gst && `GST / Registration: ${c.gst}`, c.address && `Address: ${c.address}`].filter(Boolean).join('\n');
+}
+function openClientActions(name) {
+  const c = findClient(name) || allClients().find(x => String(x.name).toLowerCase() === String(name).toLowerCase()) || { name };
+  const nameJson = esc(JSON.stringify(name)), hasPhone = !!String(c.phone || '').trim(), hasEmail = !!String(c.email || '').trim();
+  openModal(`<div class="modal-head"><div><div class="modal-title">Client Options</div><div class="page-desc">${esc(name)}</div></div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body"><div class="client-action-panel">
+      <button class="btn btn-ghost" onclick="closeModal();openClientDrawer(${nameJson})">${I.customer}View complete details</button>
+      <button class="btn btn-ghost" onclick="closeModal();openClientModal(${nameJson})">${I.edit}Modify client</button>
+      <button class="btn btn-primary" onclick="closeModal();startNewQuotation(${nameJson})">${I.quote}Create quotation</button>
+      <button class="btn btn-ghost" onclick="closeModal();newFollowupForCustomer(${nameJson})">${I.clock}Schedule follow-up</button>
+      <button class="btn btn-ghost" onclick="shareClientContact(${nameJson})">${I.export}Send contact details</button>
+      <button class="btn btn-ghost" ${hasPhone ? '' : 'disabled'} onclick="launchClientChannel(${nameJson},'call')">Call client</button>
+      <button class="btn btn-ghost" ${hasEmail ? '' : 'disabled'} onclick="launchClientChannel(${nameJson},'email')">Email client</button>
+      <button class="btn btn-ghost" ${hasPhone ? '' : 'disabled'} onclick="launchClientChannel(${nameJson},'whatsapp')">WhatsApp client</button>
+      <button class="btn btn-ghost client-delete-action" onclick="closeModal();deleteClient(${nameJson})">${I.x}Delete client</button>
+    </div></div>`);
 }
 async function shareClientContact(name) {
   const text = clientContactText(name);

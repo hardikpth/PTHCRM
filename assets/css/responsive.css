@@ -10,13 +10,15 @@ img, svg, canvas, iframe { max-width: 100%; }
 .modal-body, .drawer-body { overflow-wrap: anywhere; }
 .quotation-sheet { max-width: 100%; }
 .client-list-card { padding: 0; overflow: visible; }
-.client-list-table { min-width: 2380px; }
-.client-list-table th, .client-list-table td { vertical-align: top; }
-.client-list-copy { min-width: 180px; max-width: 240px; white-space: normal; line-height: 1.45; }
-.client-actions-cell { min-width: 300px; cursor: default; }
-.client-row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.client-row-actions .btn { justify-content: flex-start; white-space: nowrap; }
-.client-row-actions .client-delete-action { color: var(--danger); }
+.client-list-table { min-width: 1900px; }
+.client-list-table th, .client-list-table td { vertical-align: middle; }
+.client-list-table tbody td { padding-top: 10px; padding-bottom: 10px; }
+.client-list-copy { min-width: 150px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-actions-cell { min-width: 112px; width: 112px; cursor: default; }
+.client-options-btn { width: 100%; justify-content: center; white-space: nowrap; }
+.client-action-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.client-action-panel .btn { justify-content: flex-start; min-height: 42px; }
+.client-action-panel .client-delete-action { color: var(--danger); }
 @media (max-width: 1180px) {
   .builder { grid-template-columns: minmax(220px, .8fr) minmax(0, 2fr); }
   .builder > :last-child { grid-column: 1 / -1; }
@@ -73,8 +75,7 @@ img, svg, canvas, iframe { max-width: 100%; }
   .analytics-period-strip { flex-wrap: nowrap; }
   .mobile-nav { overflow-x: auto; justify-content: flex-start; gap: 3px; }
   .mobile-nav a { flex: 1 0 58px; padding-inline: 5px; }
-  .client-actions-cell { min-width: 250px; }
-  .client-row-actions { grid-template-columns: 1fr; }
+  .client-action-panel { grid-template-columns: 1fr; }
 }
 @media (max-width: 390px) {
   .overview-bi-kpis, .workspace-kpis, .surat-map-stats { grid-template-columns: 1fr; }
