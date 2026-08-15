@@ -1891,11 +1891,30 @@ VIEWS.customers = function (c) {
 function setClientFilter(key, value) { clientFilter[key] = value; renderClients(); }
 function setClientView(v) { clientView = v; VIEWS.customers(document.getElementById('canvas')); }
 function setClientSort(v) { clientSort = { key: v, dir: v === 'value' || v === 'leads' || v === 'activity' ? -1 : 1 }; renderClients(); }
+function compactClientListHTML(list) {
+  return `<div class="card client-list-card"><div class="tbl-wrap client-table-viewport"><table class="tbl client-list-table client-list-grouped">
+    <colgroup><col class="cl-company"><col class="cl-contact"><col class="cl-registration"><col class="cl-notes"><col class="cl-leads"><col class="cl-business"><col class="cl-activity"><col class="cl-options"></colgroup>
+    <thead><tr><th>Client & Industry</th><th>Contact Details</th><th>Registration & Address</th><th>Notes</th><th>Lead Summary</th><th>Business Summary</th><th>Activity & Status</th><th>Options</th></tr></thead>
+    <tbody>${list.map(cu => {
+      const m = clientMetrics(cu.name), st = clientStatusOf(m), la = clientLastActivity(cu.name), nameJson = esc(JSON.stringify(cu.name));
+      return `<tr onclick="openClientDrawer(${nameJson})">
+        <td data-label="Client & Industry"><strong>${esc(cu.name)}</strong><small>${esc(cu.cat || 'General')}</small></td>
+        <td data-label="Contact Details"><strong>${esc(cu.contact || 'No contact person')}</strong><small>${esc(cu.phone || 'No phone')}</small>${cu.email ? `<a href="mailto:${esc(cu.email)}" onclick="event.stopPropagation()">${esc(cu.email)}</a>` : '<small>No email</small>'}</td>
+        <td data-label="Registration & Address"><strong>${esc(cu.gst || 'No GST / registration')}</strong><small class="client-clamp">${esc(cu.address || 'No address')}</small></td>
+        <td data-label="Notes"><span class="client-clamp">${esc(cu.notes || 'No notes')}</span></td>
+        <td data-label="Lead Summary"><div class="client-metric-line"><span>Total <b>${m.leads}</b></span><span>Open <b>${m.open}</b></span><span>Won <b>${m.won}</b></span></div></td>
+        <td data-label="Business Summary"><strong>${inr(m.openValue)} pipeline</strong><small>${m.quotes} quotation(s)</small><small>${m.openFus} open / ${m.fus.length} follow-up(s)</small></td>
+        <td data-label="Activity & Status"><span class="badge ${st.cls}"><span class="dot"></span>${st.label}</span><small>${la ? formatFollowupDate(la) : 'No activity'}</small></td>
+        <td data-label="Options" class="client-actions-cell" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm client-options-btn" onclick="openClientActions(${nameJson})">Options ${I.chevD}</button></td>
+      </tr>`;
+    }).join('')}</tbody></table></div></div>`;
+}
 function renderClients() {
   const body = document.getElementById('clientBody'); if (!body) return;
   const list = shownClients(), total = allClients().length;
   const count = document.getElementById('clientCount'); if (count) count.textContent = `Showing ${list.length} of ${total} clients`;
   if (!list.length) { body.innerHTML = `<div class="empty" style="padding:40px"><div class="empty-ico">${I.customer}</div><h4>No clients found</h4><p>Adjust the search or add a new client.</p></div>`; return; }
+  if (clientView === 'list') { body.innerHTML = compactClientListHTML(list); return; }
   if (clientView === 'list') {
     body.innerHTML = `<div class="card client-list-card"><div class="tbl-wrap"><table class="tbl client-list-table"><thead><tr><th>Client</th><th>Industry</th><th>Contact Person</th><th>Phone</th><th>Email</th><th>GST / Reg.</th><th>Address</th><th>Notes</th><th style="text-align:right">Leads</th><th style="text-align:right">Open</th><th style="text-align:right">Won</th><th style="text-align:right">Pipeline</th><th style="text-align:right">Quotations</th><th style="text-align:right">Follow-ups</th><th>Last Activity</th><th>Status</th><th>Options</th></tr></thead><tbody>${list.map(cu => {
       const m = clientMetrics(cu.name), st = clientStatusOf(m), la = clientLastActivity(cu.name), nameJson = esc(JSON.stringify(cu.name));
