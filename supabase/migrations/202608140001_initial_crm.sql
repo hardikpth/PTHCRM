@@ -69,14 +69,6 @@ create table public.followups (
   version int not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
   created_by uuid default auth.uid(), updated_by uuid default auth.uid(), deleted_at timestamptz
 );
-create table public.tenders (
-  id uuid primary key default gen_random_uuid(), tenant_id uuid not null references public.tenants,
-  branch_id uuid references public.branches, client_id uuid references public.clients,
-  tender_no text, title text not null, value numeric(16,2) default 0, due_at timestamptz,
-  stage text default 'Identified', docs_total int default 0, docs_missing int default 0, source_data jsonb default '{}'::jsonb,
-  version int not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
-  created_by uuid default auth.uid(), updated_by uuid default auth.uid(), deleted_at timestamptz
-);
 create table public.audit_events (
   id bigint generated always as identity primary key, tenant_id uuid not null references public.tenants,
   occurred_at timestamptz not null default now(), actor_id uuid, action text not null,
@@ -109,7 +101,6 @@ create trigger clients_audit after insert or update or delete on public.clients 
 create trigger enquiries_audit after insert or update or delete on public.enquiries for each row execute function public.write_audit_event();
 create trigger quotations_audit after insert or update or delete on public.quotations for each row execute function public.write_audit_event();
 create trigger followups_audit after insert or update or delete on public.followups for each row execute function public.write_audit_event();
-create trigger tenders_audit after insert or update or delete on public.tenders for each row execute function public.write_audit_event();
 
 create or replace function public.touch_row() returns trigger language plpgsql as $$
 begin new.updated_at=now(); new.updated_by=auth.uid(); new.version=old.version+1; return new; end $$;
@@ -118,7 +109,6 @@ create trigger clients_touch before update on public.clients for each row execut
 create trigger enquiries_touch before update on public.enquiries for each row execute function public.touch_row();
 create trigger quotations_touch before update on public.quotations for each row execute function public.touch_row();
 create trigger followups_touch before update on public.followups for each row execute function public.touch_row();
-create trigger tenders_touch before update on public.tenders for each row execute function public.touch_row();
 
 alter table public.tenants enable row level security;
 alter table public.branches enable row level security;
@@ -129,7 +119,6 @@ alter table public.enquiries enable row level security;
 alter table public.quotations enable row level security;
 alter table public.quotation_lines enable row level security;
 alter table public.followups enable row level security;
-alter table public.tenders enable row level security;
 alter table public.audit_events enable row level security;
 
 create policy tenant_read on public.tenants for select using(id=public.current_tenant_id());
@@ -141,7 +130,6 @@ create policy enquiries_tenant on public.enquiries for all using(tenant_id=publi
 create policy quotations_tenant on public.quotations for all using(tenant_id=public.current_tenant_id()) with check(tenant_id=public.current_tenant_id());
 create policy quotation_lines_tenant on public.quotation_lines for all using(exists(select 1 from quotations q where q.id=quotation_id and q.tenant_id=public.current_tenant_id())) with check(exists(select 1 from quotations q where q.id=quotation_id and q.tenant_id=public.current_tenant_id()));
 create policy followups_tenant on public.followups for all using(tenant_id=public.current_tenant_id()) with check(tenant_id=public.current_tenant_id());
-create policy tenders_tenant on public.tenders for all using(tenant_id=public.current_tenant_id()) with check(tenant_id=public.current_tenant_id());
 create policy audit_read on public.audit_events for select using(tenant_id=public.current_tenant_id() and public.is_manager());
 
 insert into public.tenants(slug,name) values('pramukh-test-house','Pramukh Test House') on conflict do nothing;

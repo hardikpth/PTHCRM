@@ -18,10 +18,6 @@ const IMPORT_SPECS = {
     label: 'Clients',
     columns: ['Client Name', 'Category', 'Contact Person', 'Email', 'Phone'],
   },
-  tenders: {
-    label: 'Tenders',
-    columns: ['Tender ID', 'Title', 'Client', 'Value', 'Due Date', 'Stage', 'Documents', 'Missing'],
-  },
 };
 
 const PDF_IMPORT_SPECS = {
@@ -166,23 +162,6 @@ function applyDataImport(module, rows) {
       if (existing >= 0) DB.customers[existing] = record; else DB.customers.push(record);
     });
     if (window.persistClients) window.persistClients();
-  } else if (module === 'tenders') {
-    const prepared = rows.map((row, index) => {
-      const id = String(rowValue(row, 'Tender ID', 'ID')).trim() || `T-${Date.now().toString().slice(-5)}-${index + 1}`;
-      const due = importDateValue(rowValue(row, 'Due Date', 'Due'));
-      if (!due) throw new Error(`Tender ${id} requires a valid Due Date in YYYY-MM-DD format.`);
-      const docs = Math.max(0, Math.round(numberValue(rowValue(row, 'Documents', 'Docs'))));
-      const missing = Math.min(docs, Math.max(0, Math.round(numberValue(rowValue(row, 'Missing')))));
-      return { id, title:String(rowValue(row, 'Title', 'Tender')).trim() || 'Imported Tender', client:String(rowValue(row, 'Client', 'Authority')).trim() || 'Not specified', value:Math.max(0, numberValue(rowValue(row, 'Value'))), due, stage:String(rowValue(row, 'Stage')).trim() || 'Preparation', docs, missing, updatedAt:new Date().toISOString() };
-    });
-    const duplicateIds = prepared.map(t => keyOf(t.id)).filter((id, i, all) => all.indexOf(id) !== i);
-    if (duplicateIds.length) throw new Error(`Duplicate Tender ID in import: ${prepared.find(t => keyOf(t.id) === duplicateIds[0]).id}`);
-    prepared.forEach(record => {
-      const existing = DB.tenders.findIndex(item => keyOf(item.id) === keyOf(record.id));
-      if (existing >= 0) DB.tenders[existing] = { ...DB.tenders[existing], ...record };
-      else DB.tenders.push(record);
-    });
-    if (window.persistTenders) window.persistTenders();
   }
   return rows.length;
 }

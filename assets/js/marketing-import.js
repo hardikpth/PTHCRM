@@ -34,7 +34,7 @@
     return output;
   };
 
-  fetch('assets/data/marketing-department-import.json?v=1.0.0')
+  fetch('assets/data/marketing-department-import.json?v=1.1.0')
     .then(response => {
       if (!response.ok) throw new Error(`Workbook import data unavailable (${response.status})`);
       return response.json();
@@ -44,16 +44,13 @@
       const leads = merge(read('pth_pipeline_v1'), data.leads || [], item => item.sourceKey || item.id);
       const followups = merge(read('pth_followups_v1'), data.followups || [], item => item.sourceKey || item.id);
       const quotations = merge(read('pth_quotations_v1'), data.quotations || [], item => item.number);
-      const tenders = merge(read('pth_tenders_v1'), data.tenders || [], item => item.sourceKey || `${textKey(item.title)}|${item.due || ''}`);
 
       write('pth_clients_v1', clients);
       write('pth_pipeline_v1', leads);
       write('pth_followups_v1', followups);
       write('pth_quotations_v1', quotations);
-      write('pth_tenders_v1', tenders);
       localStorage.setItem(VERSION, '1');
       location.reload();
     })
     .catch(error => console.error('Marketing workbook import failed:', error));
 })();
-

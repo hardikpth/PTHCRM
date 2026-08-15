@@ -5,7 +5,7 @@
   const stores = new Set([
     'pth_audit_v1', 'pth_overview_strategy_v1', 'pth_crm_intelligence_v1',
     'pth_enterprise_crm_v1', 'pth_pipeline_v1', 'pth_followups_v1',
-    'pth_crm_credentials_v1', 'pth_tenders_v1', 'pth_clients_v1',
+    'pth_crm_credentials_v1', 'pth_clients_v1',
     'pth_quotations_v1', 'pth_users_v1', 'pth_brand_v1', 'pth_scopes_v1',
     'pth_sor_v1', 'pth_quotation_layout_v1'
   ]);
