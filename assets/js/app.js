@@ -2571,7 +2571,15 @@ function renderQuoteLines() {
 /* ---------- SCHEDULE OF RATES (browsable catalog from PTH SOR) ---------- */
 /* ---------- SCHEDULE OF RATES — master data store ---------- */
 const SOR_KEY = 'pth_sor_v1';
-// Snapshot the pristine SOR shipped in sor.js BEFORE applying any saved overrides, so Reset works.
+const SOR_CLEANUP_KEY = 'pth_sor_manual_catalogue_v1';
+// Clear only the legacy SOR catalogue once. Saved quotations have their own line items and are not modified.
+try {
+  if (localStorage.getItem(SOR_CLEANUP_KEY) !== '1') {
+    localStorage.setItem(SOR_KEY, '[]');
+    localStorage.setItem(SOR_CLEANUP_KEY, '1');
+  }
+} catch (e) {}
+// Snapshot the shipped catalogue before applying any saved browser edits.
 window.SOR_DEFAULT = window.SOR_DEFAULT || JSON.parse(JSON.stringify(window.SOR || []));
 (function loadSOR() { try { const s = JSON.parse(localStorage.getItem(SOR_KEY)); if (Array.isArray(s)) window.SOR = s; } catch (e) {} })();
 function persistSOR() { try { localStorage.setItem(SOR_KEY, JSON.stringify(window.SOR || [])); } catch (e) {} }
@@ -2600,7 +2608,7 @@ VIEWS.sor = function (c) {
     <div class="filter-bar enter">
       <div class="filter-search">${I.search}<input placeholder="Search ${st.tests} tests by name, IS code or category..." id="sorSearch" value="${esc(sorSearchTerm)}" oninput="renderSOR(this.value)"></div>
       <select class="fdrop" id="sorCat" onchange="renderSOR(document.getElementById('sorSearch').value)" style="min-width:200px"><option value="">All categories</option>${SOR.map(cat => `<option value="${cat.id}" ${sorCatFilter == cat.id ? 'selected' : ''}>${cat.id}. ${esc(cat.name)}</option>`).join('')}</select>
-      <button class="btn btn-ghost btn-sm hide-sm" onclick="resetSOR()" title="Restore the approved default rates">Reset to default</button>
+      <button class="btn btn-ghost btn-sm hide-sm" onclick="resetSOR()" title="Remove every category and test from the catalogue">Clear catalogue</button>
     </div>
     <div id="sorCount" class="page-desc enter" style="margin:2px 2px 12px"></div>
     <div id="sorList" class="enter"></div>`;
@@ -2642,7 +2650,8 @@ function renderSOR(q) {
       ${packages.length ? `<div class="card-pad sor-combos">${packages.map((p, pi) => `<div class="sor-combo"><span class="sor-combo-icon">${I.info}</span><span><b>${esc(p.label)}</b> — ₹${p.rate.toLocaleString('en-IN')} · ${p.tests.length} tests</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="sorAddComboToQuote(${cat.id},${pi})">${I.quote}Add package</button></div>`).join('')}</div>` : ''}
     </div>`;
   });
-  list.innerHTML = html || `<div class="empty"><div class="empty-ico">${I.search}</div><h4>No tests found</h4><p>Try a different search or category</p></div>`;
+  const catalogueEmpty = SOR.length === 0;
+  list.innerHTML = html || `<div class="empty"><div class="empty-ico">${catalogueEmpty ? I.plus : I.search}</div><h4>${catalogueEmpty ? 'No categories yet' : 'No tests found'}</h4><p>${catalogueEmpty ? 'Add your first category, then add tests and rates manually.' : 'Try a different search or category.'}</p>${catalogueEmpty ? `<button class="btn btn-primary" onclick="openSorCategoryModal()">${I.plus}Add Category</button>` : ''}</div>`;
   const count = document.getElementById('sorCount');
   if (count) count.textContent = html ? `Showing ${shownTests} test${shownTests === 1 ? '' : 's'} across ${shownCats} categor${shownCats === 1 ? 'y' : 'ies'}${term || sorCatFilter ? ' (filtered)' : ''}` : '';
 }
@@ -2739,11 +2748,11 @@ function exportSOR() {
   logAudit('Export', 'Schedule of Rates', `Exported ${rows.length - 1} SOR rows to CSV`);
 }
 function resetSOR() {
-  openModal(`<div class="modal-head"><div class="modal-title">Reset Schedule of Rates</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Restore the approved default SOR (${(window.SOR_DEFAULT || []).reduce((a, c) => a + c.tests.length, 0)} tests). All edits, additions and imports in this browser will be discarded.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmResetSOR()">Reset</button></div>`);
+  openModal(`<div class="modal-head"><div class="modal-title">Clear Schedule of Rates</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Remove all categories and tests from the Schedule of Rates catalogue in this browser?</p><p class="page-desc">Existing quotations and their saved line items will not be affected.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmResetSOR()">Clear catalogue</button></div>`);
 }
 function confirmResetSOR() {
-  window.SOR = JSON.parse(JSON.stringify(window.SOR_DEFAULT || [])); persistSOR(); closeModal(); sorCatFilter = ''; sorSearchTerm = '';
-  toast('SOR reset', 'Restored to the approved default rates'); logAudit('Reset', 'Schedule of Rates', 'SOR restored to default'); refreshSOR();
+  window.SOR = []; persistSOR(); closeModal(); sorCatFilter = ''; sorSearchTerm = '';
+  toast('Catalogue cleared', 'Existing quotations were not changed', 'ok'); logAudit('Clear', 'Schedule of Rates', 'Removed all SOR categories and tests; quotations retained'); refreshSOR();
 }
 
 /* ---------- ACCREDITATION SCOPE ---------- */
