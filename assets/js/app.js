@@ -352,7 +352,90 @@ function renderGlobalSearch(query=''){
   host.innerHTML=globalSearchResults.length?globalSearchResults.map((x,i)=>`<button class="global-search-result ${i===0?'selected':''}" data-search-index="${i}" onmouseenter="selectGlobalSearchResult(${i})" onclick="openGlobalSearchResult(${i})"><span class="global-search-icon">${I[x.type==='lead'?'enquiry':x.type==='quotation'?'quote':x.type==='credential'?'cred':x.type==='tender'?'tender':x.type==='client'?'customer':x.type==='sor'?'rate':x.type==='followup'?'clock':'document']||I.document}</span><span><b>${esc(x.title)}</b><small>${esc(x.sub)}</small></span><em>${esc(x.module)}</em>${I.arrowR}</button>`).join(''):`<div class="global-search-empty">${I.search}<h3>No matching records</h3><p>Try a customer, document number, test, IS code, person, status or module name.</p></div>`;
 }
 function selectGlobalSearchResult(i){document.querySelectorAll('.global-search-result').forEach((x,n)=>x.classList.toggle('selected',n===i));}
-function globalSearchKeydown(e){const rows=[...document.querySelectorAll('.global-search-result')];if(e.key==='Escape'){closeModal();return;}if(!rows.length)return;let i=Math.max(0,rows.findIndex(x=>x.classList.contains('selected')));if(e.key==='ArrowDown'){e.preventDefault();i=Math.min(rows.length-1,i+1);selectGlobalSearchResult(i);rows[i].scrollIntoView({block:'nearest'});}if(e.key==='ArrowUp'){e.preventDefault();i=Math.max(0,i-1);selectGlobalSearchResult(i);rows[i].scrollIntoView({block:'nearest'});}if(e.key==='Enter')'')}</select></label>
+function globalSearchKeydown(e){const rows=[...document.querySelectorAll('.global-search-result')];if(e.key==='Escape'){closeModal();return;}if(!rows.length)return;let i=Math.max(0,rows.findIndex(x=>x.classList.contains('selected')));if(e.key==='ArrowDown'){e.preventDefault();i=Math.min(rows.length-1,i+1);selectGlobalSearchResult(i);rows[i].scrollIntoView({block:'nearest'});}if(e.key==='ArrowUp'){e.preventDefault();i=Math.max(0,i-1);selectGlobalSearchResult(i);rows[i].scrollIntoView({block:'nearest'});}if(e.key==='Enter'){e.preventDefault();openGlobalSearchResult(i);}}
+function openGlobalSearchResult(i){const x=globalSearchResults[i];if(!x)return;closeModal();navigate(x.route);setTimeout(()=>{if(x.type==='lead')openLeadDrawer(x.id);else if(x.type==='followup')openFollowupDrawer(x.id);else if(x.type==='quotation')openQuotationDrawer(x.id);else if(x.type==='client')openClientDrawer(x.id);else if(x.type==='tender')openTenderDrawer(x.id);else if(x.type==='credential')openCredDrawer(x.id);else if(x.type==='sor'){sorSearchTerm=x.id;const input=document.getElementById('sorSearch');if(input)input.value=x.id;renderSOR(x.id);}else if(x.type==='audit'){const input=document.getElementById('auditSearch');if(input){input.value=x.title;renderAuditTable(x.title);}}},80);logAudit('Search',x.module,`Opened ${x.title} from global search`);}
+
+function toggleTheme() {
+  state.theme = state.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  toast(state.theme === 'dark' ? 'Dark theme enabled' : 'Light theme enabled', '', 'info');
+  if (VIEWS[state.route]) VIEWS[state.route](document.getElementById('canvas'));
+}
+
+function quickAddMenu() {
+  openModal(`
+    <div class="modal-head"><div class="modal-title">Quick Add</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        ${[['New Enquiry','enquiry'],['New Follow-up','clock'],['Add Credential','cred'],['New Quotation','quote'],['Add Client','customer'],['New Tender','tender']].map(([t,ic]) =>
+          `<button class="btn btn-ghost" style="justify-content:flex-start;padding:14px" onclick="closeModal();${ic==='cred'?'openCredentialModal()':ic==='enquiry'?'openEnquiryModal()':ic==='clock'?'openFollowupModal()':ic==='quote'?'startNewQuotation()':ic==='customer'?'openClientModal()':ic==='tender'?'openTenderModal()':`toast('${t}','Form opened','info')`}">${I[ic]}${t}</button>`).join('')}
+      </div>
+    </div>`);
+}
+
+function navigate(route) {
+  state.route = route;
+  if(route==='workspace'&&typeof processScheduledReports==='function')processScheduledReports();
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.route === route));
+  document.querySelectorAll('.nav-item .nav-dot').forEach(d => d.remove());
+  document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.toggle('active', a.dataset.route === route));
+  const title = NAV.flatMap(s => s.items).find(i => i.id === route)?.label || 'Overview';
+  const tt = document.getElementById('topbarTitle'); if (tt) tt.textContent = title;
+  const canvas = document.getElementById('canvas');
+  setRouteMotionContext(route);
+  canvas.scrollTop = 0;
+  (VIEWS[route] || VIEWS.overview)(canvas);
+  enhanceDateTimeInputs(canvas);
+  normalizeVisibleDateTimes(canvas);
+  window.scrollTo(0, 0);
+}
+
+/* helper builders */
+function pageHead(title, desc, actions = '') {
+  return `<div class="page-head">
+    <div class="page-head-l">
+      <div class="topbar-breadcrumb">Home ${I.chevR} <span style="color:var(--text-secondary)">${title}</span></div>
+      <div class="page-title">${title}</div>
+      ${desc ? `<div class="page-desc">${desc}</div>` : ''}
+    </div>
+    <div class="page-head-r">${actions}</div>
+  </div>`;
+}
+function statusBadge(status) {
+  const map = {
+    valid: ['badge-valid','Valid'], expiring: ['badge-expiring','Expiring Soon'], expired: ['badge-expired','Expired'],
+    renewal: ['badge-renewal','Renewal Initiated'], submitted: ['badge-submitted','Submitted'], review: ['badge-review','Under Review'],
+    observation: ['badge-observation','Observation Raised'], approved: ['badge-approved','Approved'], suspended: ['badge-suspended','Suspended'],
+    won: ['badge-won','Won'], lost: ['badge-lost','Lost'], overdue: ['badge-overdue','Overdue'],
+    pending: ['badge-review','Scheduled'], completed: ['badge-valid','Completed'], today: ['badge-submitted','Due Today'],
+    approval_pending: ['badge-expiring','Approval Pending'], approval_rejected: ['badge-expired','Approval Rejected'],
+  };
+  const [cls, label] = map[status] || ['badge-neutral', status];
+  return `<span class="badge ${cls}"><span class="dot"></span>${label}</span>`;
+}
+function dotForDays(d) {
+  if (d < 7) return 'var(--danger)'; if (d < 30) return '#F57C1F'; if (d < 60) return 'var(--warning)'; return 'var(--primary-dark)';
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+const VIEWS = {};
+
+/* ---------- OVERVIEW ---------- */
+const KPI_ROUTE = { enq: 'enquiries', quo: 'quotations', ord: 'pipeline', cnv: 'analytics', due: 'analytics' };
+const PERIOD_FACTOR = { 'Last 7 days': 0.25, 'Last 30 days': 1, 'This quarter': 3, 'This FY': 12 };
+const OVERVIEW_STRATEGY_KEY='pth_overview_strategy_v1';
+let overviewStrategy=(()=>{const people=[...new Set((DB.pipeline?.leads||[]).map(x=>x.person).filter(Boolean))],defaults={visionTitle:'Build Gujarat’s Most Trusted Testing Partnership',visionStatement:'Win through technical credibility, responsive service and disciplined customer follow-up.',focus:'Priority: convert high-value infrastructure opportunities while protecting quality, compliance and margins.',financialYearTarget:30000000,monthlyTarget:2500000,incentiveRate:1,acceleratorRate:1.5,acceleratorThreshold:100,userTargets:Object.fromEntries(people.map(x=>[x,500000]))};try{return{...defaults,...JSON.parse(localStorage.getItem(OVERVIEW_STRATEGY_KEY)||'{}')};}catch(e){return defaults;}})();
+function persistOverviewStrategy(){try{localStorage.setItem(OVERVIEW_STRATEGY_KEY,JSON.stringify(overviewStrategy));}catch(e){}}
+function overviewWonRows(){const owners=[...new Set([...DB.pipeline.leads.map(x=>x.person),...Object.keys(overviewStrategy.userTargets||{})].filter(Boolean))];return owners.map(name=>{const won=DB.pipeline.leads.filter(x=>x.person===name&&x.col==='won').reduce((s,x)=>s+(+x.po?.value||+x.val||0),0),target=+(overviewStrategy.userTargets||{})[name]||0,attainment=target?Math.round(won/target*100):0,rate=attainment>=overviewStrategy.acceleratorThreshold?+overviewStrategy.acceleratorRate:+overviewStrategy.incentiveRate,incentive=Math.round(won*rate/100);return{name,won,target,attainment,rate,incentive};}).sort((a,b)=>b.attainment-a.attainment||b.won-a.won);}
+function overviewVisionHTML(){const rows=overviewWonRows(),won=rows.reduce((s,x)=>s+x.won,0),monthTarget=+overviewStrategy.monthlyTarget||0,fyTarget=+overviewStrategy.financialYearTarget||0,monthPct=monthTarget?Math.round(won/monthTarget*100):0,fyPct=fyTarget?Math.round(won/fyTarget*100):0;return `<section class="vision-board enter"><div class="vision-copy"><div class="eyebrow">MANAGEMENT VISION BOARD · ${esc(DB.financialYear)}</div><h1>${esc(overviewStrategy.visionTitle)}</h1><p>${esc(overviewStrategy.visionStatement)}</p><div class="vision-focus">${I.arrowR}<span>${esc(overviewStrategy.focus)}</span></div></div><div class="vision-metrics"><div><span>Monthly Target</span><b>${inr(monthTarget)}</b><small>${monthPct}% attained</small></div><div><span>FY Target</span><b>${inr(fyTarget)}</b><small>${fyPct}% attained</small></div><div><span>Won Value</span><b>${inr(won)}</b><small>Live CRM value</small></div><button class="btn btn-primary" onclick="openOverviewStrategyModal()">${I.edit}Configure Vision & Targets</button></div></section>`;}
+function overviewTargetsHTML(){const rows=overviewWonRows(),won=rows.reduce((s,x)=>s+x.won,0),monthTarget=+overviewStrategy.monthlyTarget||0,monthPct=monthTarget?Math.round(won/monthTarget*100):0,totalIncentive=rows.reduce((s,x)=>s+x.incentive,0);return `<div class="grid dash-grid overview-target-grid"><div class="col-7"><div class="card card-pad"><div class="card-head"><div><h3>Sales Target Command Centre</h3><div class="card-sub">Person-wise monthly target, achievement and gap</div></div><span class="badge ${monthPct>=100?'badge-valid':'badge-expiring'}">${monthPct}% overall</span></div><div class="target-overall"><div><span>Team achievement</span><b>${inr(won)} <small>of ${inr(monthTarget)}</small></b></div><div class="target-progress"><span style="width:${Math.min(100,monthPct)}%"></span></div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Sales Person</th><th>Target</th><th>Won</th><th>Achievement</th><th>Gap</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${inr(x.target)}</td><td>${inr(x.won)}</td><td><div class="mini-target"><span style="width:${Math.min(100,x.attainment)}%"></span></div><b class="tnum">${x.attainment}%</b></td><td class="tnum">${inr(Math.max(0,x.target-x.won))}</td></tr>`).join('')||'<tr><td colspan="5">No sales owners configured.</td></tr>'}</tbody></table></div></div></div><div class="col-5"><div class="card card-pad incentive-card"><div class="card-head"><div><h3>Incentive Dashboard</h3><div class="card-sub">Estimated from won value and configured slabs</div></div><b class="incentive-total">${inr(totalIncentive)}</b></div>${rows.map((x,i)=>`<div class="incentive-row"><span class="rank">${i+1}</span><div><b>${esc(x.name)}</b><small>${x.attainment}% target · ${x.rate}% rate</small></div><strong>${inr(x.incentive)}</strong></div>`).join('')}<div class="incentive-note">Estimates are managerial projections. Final payroll approval remains outside CRM.</div></div></div></div>`;}
+function openOverviewStrategyModal(){const people=[...new Set([...DB.pipeline.leads.map(x=>x.person),...Object.keys(overviewStrategy.userTargets||{})].filter(Boolean))];openModal(`<div class="modal-head"><div class="modal-title">Configure Vision, Targets & Incentives</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Vision Heading</label><input class="input" id="ovVisionTitle" value="${esc(overviewStrategy.visionTitle)}"></div><div class="field"><label>Vision Statement</label><textarea class="input" id="ovVisionStatement" style="min-height:70px">${esc(overviewStrategy.visionStatement)}</textarea></div><div class="field"><label>Current Strategic Focus</label><textarea class="input" id="ovVisionFocus" style="min-height:58px">${esc(overviewStrategy.focus)}</textarea></div><div class="form-grid"><div class="field"><label>Monthly Team Target (₹)</label><input class="input tnum" id="ovMonthlyTarget" type="number" min="0" value="${overviewStrategy.monthlyTarget}"></div><div class="field"><label>Financial Year Target (₹)</label><input class="input tnum" id="ovFyTarget" type="number" min="0" value="${overviewStrategy.financialYearTarget}"></div></div><div class="form-grid"><div class="field"><label>Base Incentive (% of won value)</label><input class="input" id="ovIncentiveRate" type="number" min="0" max="100" step="0.1" value="${overviewStrategy.incentiveRate}"></div><div class="field"><label>Accelerator Rate (%)</label><input class="input" id="ovAcceleratorRate" type="number" min="0" max="100" step="0.1" value="${overviewStrategy.acceleratorRate}"></div></div><div class="field"><label>Accelerator starts at target achievement (%)</label><input class="input" id="ovAcceleratorThreshold" type="number" min="0" max="500" value="${overviewStrategy.acceleratorThreshold}"></div><div class="page-desc" style="margin:16px 0 7px">Monthly target by sales person</div>${people.map((name,i)=>`<div class="kv"><span class="v">${esc(name)}</span><input class="input tnum ov-user-target" data-owner="${esc(name)}" type="number" min="0" value="${+(overviewStrategy.userTargets||{})[name]||0}" style="max-width:180px"></div>`).join('')}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOverviewStrategy()">${I.check}Save Configuration</button></div>`);}
+function saveOverviewStrategy(){const title=document.getElementById('ovVisionTitle').value.trim(),statement=document.getElementById('ovVisionStatement').value.trim();if(!title||!statement){toast('Vision details required','Enter both the vision heading and statement.','err');return;}const userTargets={};document.querySelectorAll('.ov-user-target').forEach(x=>userTargets[x.dataset.owner]=Math.max(0,+x.value||0));overviewStrategy={...overviewStrategy,visionTitle:title,visionStatement:statement,focus:document.getElementById('ovVisionFocus').value.trim(),monthlyTarget:Math.max(0,+document.getElementById('ovMonthlyTarget').value||0),financialYearTarget:Math.max(0,+document.getElementById('ovFyTarget').value||0),incentiveRate:Math.max(0,+document.getElementById('ovIncentiveRate').value||0),acceleratorRate:Math.max(0,+document.getElementById('ovAcceleratorRate').value||0),acceleratorThreshold:Math.max(0,+document.getElementById('ovAcceleratorThreshold').value||0),userTargets};persistOverviewStrategy();crmIntel.targets.monthly=overviewStrategy.monthlyTarget;persistCrmIntel();closeModal();logAudit('Edit','Overview',`Vision board and sales targets updated by ${DB.user.name}`);toast('Overview strategy saved','Targets and incentives recalculated from live CRM data');VIEWS.overview(document.getElementById('canvas'));}
+VIEWS.overview = function (c) {
+  const actions = `
+    <label class="pill-select hide-sm" style="cursor:pointer">${I.cal}<select id="ovPeriod" onchange="setOverviewPeriod(this.value)" style="border:none;background:transparent;font-weight:600;font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;outline:none">${Object.keys(PERIOD_FACTOR).map(p => `<option ${p === state.period ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
     <button class="btn btn-ghost hide-sm" onclick="exportOverview()">${I.export}Export</button>
     <button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Enquiry ${I.arrowR}</button>`;
 
@@ -528,7 +611,234 @@ function renderOverviewBusinessIntelligence() {
   const funnel = DB.pipeline.columns.map(c=>{const a=leads.filter(x=>x.col===c.id);return{label:c.name,value:a.reduce((s,x)=>s+(+x.val||0),0),count:a.length};});
   ovBars('ovFunnelBars', funnel, inr, x=>`${x.count} opportunities`);
   const qg=ovGroup(quotes,x=>x.status); ovDonut('ovQuotePie','ovQuoteLegend',Object.entries(qg).map(([label,a])=>({label:label[0].toUpperCase()+label.slice(1),value:a.length})),'Quotations');
-  const sg=ovGroup(open,x=>x.cat); ovBars('ovServiceBars',Object.entrile="background:${x.color}"></i><div><b>${esc(x.name)}</b><small>${x.level} · ${x.days} days · ${x.action}</small></div>${I.arrowR}</button>`).join('')}</div></div></div>`;}
+  const sg=ovGroup(open,x=>x.cat); ovBars('ovServiceBars',Object.entries(sg).map(([label,a])=>({label,value:a.reduce((s,x)=>s+(+x.val||0),0),count:a.length})).sort((a,b)=>b.value-a.value),inr,x=>`${x.count} open`);
+  const fg=ovGroup(fus,x=>x.channel); ovBars('ovFollowupBars',Object.entries(fg).map(([label,a])=>({label,value:a.length,done:a.filter(x=>x.status==='completed').length,late:a.filter(x=>x.status!=='completed'&&followupTiming(x)==='overdue').length})).sort((a,b)=>b.value-a.value),v=>`${v} actions`,x=>`${ovPercent(x.done,x.value)}% done · ${x.late} late`);
+  const clients=allClients().map(x=>({label:x.name,value:clientMetrics(x.name).openValue})).sort((a,b)=>b.value-a.value); ovBars('ovClientBars',clients,inr);
+  const tg=ovGroup(tenders,x=>x.stage); ovDonut('ovTenderPie','ovTenderLegend',Object.entries(tg).map(([label,a])=>({label,value:a.length})),'Tenders');
+  const og=ovGroup(open,x=>x.person); ovBars('ovOwnerBars',Object.entries(og).map(([label,a])=>({label,value:a.reduce((s,x)=>s+(+x.val||0)*(+x.prob||0)/100,0),count:a.length})).sort((a,b)=>b.value-a.value),inr,x=>`${x.count} open`);
+  const tests=(window.SOR||[]).flatMap(x=>x.tests||[]), priced=tests.filter(x=>x.rate!=null); ovDonut('ovSorPie','ovSorLegend',[{label:'Fixed Rate',value:priced.length,color:'var(--primary)'},{label:'On Request',value:tests.length-priced.length,color:'var(--warning)'}],'SOR Services');
+}
+
+let suratMapType = 'all';
+const GOOGLE_MAPS_KEY_STORAGE = 'pth_google_maps_embed_key';
+function googleMapsApiKey(){ return localStorage.getItem(GOOGLE_MAPS_KEY_STORAGE)||''; }
+const SURAT_ZONES = [
+  {name:'Adajan',x:31,y:35},{name:'Rander',x:39,y:18},{name:'Katargam',x:54,y:20},{name:'Varachha',x:70,y:32},
+  {name:'Vesu',x:42,y:73},{name:'Athwa',x:43,y:55},{name:'Udhna',x:62,y:68},{name:'Pandesara',x:55,y:84},
+  {name:'Hazira',x:14,y:61},{name:'Palsana',x:79,y:84},{name:'Kamrej',x:86,y:28},{name:'Olpad',x:17,y:20}
+];
+function suratZoneFor(text) { let h=0; for(const ch of String(text||'')) h=(h*31+ch.charCodeAt(0))>>>0; return SURAT_ZONES[h%SURAT_ZONES.length]; }
+function suratMapActivities() {
+  const leads=DB.pipeline.leads||[], items=[];
+  leads.filter(x=>x.col!=='lost').forEach(x=>items.push({type:'inquiry',person:x.person||'Unassigned',customer:x.cust,detail:x.proj,value:+x.val||0,zone:suratZoneFor(x.cust+x.proj),leadId:x.id}));
+  followups.filter(x=>['Site Visit','Meeting'].includes(x.channel)).forEach(x=>{const lead=leads.find(l=>l.id===x.leadId);items.push({type:x.channel==='Site Visit'?'visit':'meeting',person:lead?.person||x.assignee||'Unassigned',customer:x.customer,detail:x.subject,value:lead?.val||0,zone:suratZoneFor(x.customer+x.subject),leadId:x.leadId});});
+  leads.filter(x=>x.col==='won').forEach(x=>items.push({type:'closed',person:x.person||'Unassigned',customer:x.cust,detail:x.proj,value:+x.val||0,zone:suratZoneFor(x.cust+x.proj+'closed'),leadId:x.id}));
+  return items;
+}
+function initSuratActivityMap() {
+  const select=document.getElementById('suratOwnerFilter'); if(!select)return;
+  const people=[...new Set(suratMapActivities().map(x=>x.person))].sort(); select.innerHTML='<option value="all">All persons</option>'+people.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  renderSuratActivityMap();
+}
+function setSuratMapType(type) { suratMapType=type; document.querySelectorAll('#suratTypeFilter button').forEach(x=>x.classList.toggle('on',x.dataset.maptype===type)); renderSuratActivityMap(); }
+function renderSuratActivityMap() {
+  const host=document.getElementById('suratMap'); if(!host)return; const owner=document.getElementById('suratOwnerFilter')?.value||'all';
+  const all=suratMapActivities(), rows=all.filter(x=>(owner==='all'||x.person===owner)&&(suratMapType==='all'||x.type===suratMapType));
+  const offsets={inquiry:[-1.8,-1.8],visit:[1.8,-1.8],meeting:[-1.8,1.8],closed:[1.8,1.8]};
+  const apiKey=googleMapsApiKey(), satellite=apiKey?`<iframe class="surat-google-map" title="Google Maps satellite view of Surat" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" src="https://www.google.com/maps/embed/v1/view?key=${encodeURIComponent(apiKey)}&center=21.1702%2C72.8311&zoom=12&maptype=satellite&language=en&region=IN"></iframe>`:`<div class="surat-map-config"><div>${I.map||I.info}</div><h3>Google Satellite Map Ready</h3><p>Add a Google Maps Embed API key in Settings to load the official Surat satellite view.</p><button class="btn btn-primary" onclick="navigate('settings')">Configure Google Maps ${I.arrowR}</button></div>`;
+  host.innerHTML=`${satellite}<svg class="surat-activity-overlay ${apiKey?'':'map-unconfigured'}" viewBox="0 0 900 520" role="img" aria-label="CRM activity markers over Surat satellite map">${rows.map((x,i)=>{const o=offsets[x.type],cx=x.zone.x*9+o[0]*i%14,cy=x.zone.y*5.2+o[1]*i%14;return `<g class="surat-marker ${x.type}" transform="translate(${cx} ${cy})" onclick="${x.leadId?`openLeadDrawer('${esc(x.leadId)}')`:''}"><circle r="12"/><circle r="4" class="marker-core"/><title>${esc(x.customer)} · ${esc(x.detail)} · ${esc(x.person)} · ${inr(x.value)}</title></g>`}).join('')}</svg><div class="surat-map-badge">GOOGLE SATELLITE · SURAT</div><a class="surat-map-open" href="https://www.google.com/maps/search/?api=1&query=Surat%2C%20Gujarat" target="_blank" rel="noopener">Open in Google Maps ↗</a>`;
+  const counts={inquiry:0,visit:0,meeting:0,closed:0};rows.forEach(x=>counts[x.type]++); const labels={inquiry:'Enquiries',visit:'Site Visits',meeting:'Meetings',closed:'Closed Works'},stats=document.getElementById('suratMapStats'); if(stats)stats.innerHTML=Object.entries(counts).map(([k,v])=>`<div class="map-stat ${k}"><strong class="tnum">${v}</strong><span>${labels[k]}</span></div>`).join('');
+  const pg=ovGroup(rows,x=>x.person), list=document.getElementById('suratPersonList');
+  const personRows=Object.entries(pg).sort((a,b)=>b[1].length-a[1].length).map(([p,a])=>`<button onclick="document.getElementById('suratOwnerFilter').value='${esc(p)}';renderSuratActivityMap()"><span class="avatar">${esc(p.replace(/[^A-Z]/g,'').slice(0,2)||p.slice(0,2))}</span><b>${esc(p)}</b><small>${a.length} activities · ${inr(a.reduce((s,x)=>s+x.value,0))}</small></button>`).join('');
+  if(list)list.innerHTML=`<div class="map-side-title">Person-wise activity</div>${personRows||'<div class="empty bi-empty"><h4>No activity for this filter</h4></div>'}`;
+}
+
+function setOverviewPeriod(period) {
+  state.period = period;
+  const factor = PERIOD_FACTOR[period] || 1;
+  const row = document.getElementById('kpiRow');
+  row.querySelectorAll('.kpi-val').forEach(el => {
+    const base = +el.dataset.base;
+    el.dataset.target = el.dataset.kid === 'cnv' ? base : Math.round(base * factor);
+    el.textContent = '0';
+  });
+  animateCounters(row);
+  toast('Period updated', period, 'info');
+  logAudit('View', 'Overview', `Dashboard period changed to "${period}"`);
+}
+
+function exportOverview() {
+  const factor = PERIOD_FACTOR[state.period] || 1;
+  const rows = [['Metric', 'Value', 'Change %', 'Direction', 'Period'],
+    ...DB.kpis.map(k => [k.label, k.id === 'cnv' ? k.value + '%' : (k.fmt === 'inr' ? inr(k.value * factor) : Math.round(k.value * factor)), k.delta, k.dir, state.period])];
+  downloadCSV(rows, 'PTH-CRM-overview-kpis.csv');
+  logAudit('Export', 'Overview', `Exported dashboard KPIs (${state.period})`);
+}
+
+function drawMainChart(seriesName) {
+  const revenue = ['Quotation Value','Revenue booked','Payment collected','Revenue'].some(k => seriesName.includes('Revenue') || seriesName.includes(k));
+  const isRev = seriesName === 'Revenue booked' || seriesName === 'Revenue';
+  areaChart(document.getElementById('mainChart'), {
+    labels: DB.months,
+    series: [
+      { name: seriesName, values: DB.series[seriesName] || DB.series['Enquiries received'] },
+      { name: 'Orders received', values: DB.series['Orders received'], color: 'var(--info)' },
+    ],
+  }, { height: 300, fmtTip: v => isRev ? '₹' + v + 'L' : v });
+}
+
+function renderExpiryTimeline(items) {
+  return items.map((e, i) => `
+    <div class="tl-item" onclick="openExpiryDrawer('${esc(e.name)}')">
+      <div class="tl-rail"><span class="tl-dot" style="background:${dotForDays(e.days)}"></span>${i < items.length - 1 ? '<span class="tl-line"></span>' : ''}</div>
+      <div class="tl-body"><div class="tl-title">${e.name}</div><div class="tl-meta">${e.cat} · ${e.person}</div></div>
+      <div class="tl-right"><div class="tl-days ${e.days < 7 ? 'crit' : e.days < 30 ? 'warn' : ''}">${e.days < 0 ? 'Expired' : e.days + 'd'}</div><div class="tl-meta">${formatAppDate(e.expiry)}</div></div>
+    </div>`).join('');
+}
+
+function openExpiryDrawer(name) {
+  const e = DB.expiries.find(x => x.name === name) || DB.expiries[0];
+  openDrawer(`
+    <div class="drawer-head">
+      <button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
+      <div style="font-size:12px;color:var(--text-muted)">${e.cat}</div>
+      <div style="font-size:19px;font-weight:600;margin:3px 0 10px">${e.name}</div>
+      ${statusBadge(e.status)}
+    </div>
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" data-tab="ov">Overview</button>
+      <button class="drawer-tab" data-tab="rn">Renewal</button>
+      <button class="drawer-tab" data-tab="tk">Tasks</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-pane" id="pane-ov">
+        <div class="kv"><span class="k">Responsible Person</span><span class="v">${e.person}</span></div>
+        <div class="kv"><span class="k">Expiry Date</span><span class="v">${formatAppDate(e.expiry)}</span></div>
+        <div class="kv"><span class="k">Remaining Days</span><span class="v">${e.days < 0 ? 'Expired' : e.days + ' days'}</span></div>
+        <div class="kv"><span class="k">Priority</span><span class="v"><span class="prio prio-${e.prio === 'high' ? 'high' : e.prio === 'med' ? 'med' : 'low'}">${e.prio}</span></span></div>
+        <div class="kv"><span class="k">Renewal Status</span><span class="v">${statusBadge(e.status)}</span></div>
+        <button class="btn btn-primary" style="margin-top:16px;width:100%;justify-content:center" onclick="toast('Renewal initiated','Task assigned to ${esc(e.person)}')">Initiate Renewal</button>
+      </div>
+      <div class="drawer-pane" id="pane-rn" style="display:none"><div class="timeline">${renewalTimeline()}</div></div>
+      <div class="drawer-pane" id="pane-tk" style="display:none"><div class="empty"><div class="empty-ico">${I.check}</div><h4>2 open tasks</h4><p>Collect documents · Book calibration slot</p></div></div>
+    </div>`);
+}
+function renewalTimeline() {
+  const steps = ['Renewal task created','Documents collected','Application submitted','Fees paid','Query received','Response submitted','Approval received','New certificate uploaded'];
+  return steps.map((s, i) => `<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:${i < 4 ? 'var(--primary-dark)' : 'var(--border)'}"></span>${i < steps.length - 1 ? '<span class="tl-line"></span>' : ''}</div><div class="tl-body"><div class="tl-title" style="font-size:12.5px">${s}</div><div class="tl-meta">${i < 4 ? 'Completed' : 'Pending'}</div></div></div>`).join('');
+}
+
+/* ---------- CRM PIPELINE ---------- */
+/* ---------- CRM INTELLIGENCE & AUTOMATION ---------- */
+const CRM_INTELLIGENCE_KEY='pth_crm_intelligence_v1';
+const CRM_DEFAULT_CADENCES=[
+  {id:'cad-new',name:'New Enquiry Qualification',category:'All',steps:[['Initial qualification call',0,'Call'],['Technical requirement clarification',1,'Meeting'],['Prepare and submit quotation',2,'Email'],['Quotation acknowledgement',4,'Call'],['Commercial follow-up',7,'WhatsApp']]},
+  {id:'cad-material',name:'Material Testing Conversion',category:'Material Testing',steps:[['Confirm sample and parameters',0,'Call'],['Share scope and quotation',1,'Email'],['Confirm sample dispatch',3,'WhatsApp'],['Commercial closure',6,'Call']]},
+  {id:'cad-site',name:'Site Investigation / NDT',category:'Geotechnical',steps:[['Requirement discovery',0,'Call'],['Schedule site visit',1,'Site Visit'],['Technical proposal',3,'Email'],['Proposal review meeting',5,'Meeting'],['Closure follow-up',8,'Call']]}
+];
+const CRM_DEFAULT_RULES=[
+  {id:'rule-high-value',name:'High-value opportunity attention',event:'lead_saved',enabled:true,condition:'value >= 500000',action:'Mark high priority and notify owner'},
+  {id:'rule-new-followup',name:'New enquiry follow-up',event:'lead_created',enabled:true,condition:'Every new enquiry',action:'Create qualification call for next business day'},
+  {id:'rule-quote-validity',name:'Quotation validity protection',event:'quotation_saved',enabled:true,condition:'Every quotation',action:'Create follow-up seven days before validity'},
+  {id:'rule-quote-approval',name:'Commercial approval control',event:'quotation_saved',enabled:true,condition:'Discount >= 10%, value >= 500000, custom service or below-SOR rate',action:'Create approval request'},
+  {id:'rule-stale',name:'Stale opportunity alert',event:'daily_review',enabled:true,condition:'No activity for 7 days',action:'Flag deal health and recommend action'}
+];
+let crmIntel=(()=>{const defaults={cadences:CRM_DEFAULT_CADENCES,enrollments:[],approvals:[],rules:CRM_DEFAULT_RULES,automationLog:[],targets:{monthly:2500000}};try{const saved=JSON.parse(localStorage.getItem(CRM_INTELLIGENCE_KEY)||'{}');return{...defaults,...saved,cadences:Array.isArray(saved.cadences)?saved.cadences:defaults.cadences,rules:Array.isArray(saved.rules)?saved.rules:defaults.rules};}catch(e){return defaults;}})();
+let crmPendingLeadData=null;
+function persistCrmIntel(){try{localStorage.setItem(CRM_INTELLIGENCE_KEY,JSON.stringify(crmIntel));}catch(e){}}
+function crmDaysSince(value){if(!value)return 999;const d=new Date(String(value).replace(' ','T'));return isNaN(d)?999:Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));}
+function crmCustomerKey(v){return String(v||'').toLowerCase().replace(/\b(pvt|private|limited|ltd|llp|company|co)\b/g,'').replace(/[^a-z0-9]/g,'');}
+function crmLeadActivity(lead){const dates=[lead.updatedAt,lead.createdAt];followups.filter(f=>f.leadId===lead.id).forEach(f=>dates.push(f.completedAt,f.due));savedQuotations.filter(q=>crmCustomerKey(q.customer)===crmCustomerKey(lead.cust)).forEach(q=>dates.push(q.updatedAt,q.date));return dates.filter(Boolean).sort().at(-1)||'';}
+function crmLeadScore(lead){let score=15,reasons=[];const fs=followups.filter(f=>f.leadId===lead.id),quotes=savedQuotations.filter(q=>crmCustomerKey(q.customer)===crmCustomerKey(lead.cust)),wonHistory=DB.pipeline.leads.filter(x=>x.id!==lead.id&&crmCustomerKey(x.cust)===crmCustomerKey(lead.cust)&&x.col==='won').length,age=crmDaysSince(crmLeadActivity(lead));if(+lead.val>=1000000){score+=22;reasons.push('High commercial value');}else if(+lead.val>=300000){score+=15;reasons.push('Material opportunity value');}else if(+lead.val>0)score+=7;if(lead.prio==='high'){score+=10;reasons.push('Marked high priority');}score+=Math.round((+lead.prob||0)*.22);if(quotes.length){score+=10;reasons.push('Quotation prepared');}if(fs.some(f=>f.status==='completed')){score+=8;reasons.push('Engagement recorded');}if(wonHistory){score+=10;reasons.push('Existing won customer');}if(age>14){score-=22;reasons.push('No activity for over 14 days');}else if(age>7){score-=12;reasons.push('Follow-up becoming stale');}if(fs.some(f=>f.status!=='completed'&&followupTiming(f)==='overdue')){score-=10;reasons.push('Overdue follow-up');}score=Math.max(0,Math.min(100,score));const band=score>=75?'Hot':score>=45?'Warm':'Cold';const next=lead.col==='won'?'Begin project handover':lead.col==='lost'?'Review loss and nurture later':fs.some(f=>f.status!=='completed'&&followupTiming(f)==='overdue')?'Complete overdue follow-up':!quotes.length?'Clarify scope and prepare quotation':age>7?'Reconnect with customer':'Advance to next pipeline stage';return{score,band,reasons,next};}
+function crmDealHealth(lead){if(['won','lost'].includes(lead.col))return{level:lead.col==='won'?'Healthy':'Closed',color:lead.col==='won'?'var(--primary-dark)':'var(--text-muted)',age:0};const age=crmDaysSince(crmLeadActivity(lead)),late=followups.some(f=>f.leadId===lead.id&&f.status!=='completed'&&followupTiming(f)==='overdue');const expiry=savedQuotations.filter(q=>crmCustomerKey(q.customer)===crmCustomerKey(lead.cust)).some(q=>quotationExpiryState(q)!=='valid');if(age>14||late&&age>7)return{level:'At Risk',color:'var(--danger)',age};if(age>7||late||expiry)return{level:'Attention',color:'var(--warning)',age};return{level:'Healthy',color:'var(--primary-dark)',age};}
+function crmOwnerWorkload(name){return DB.pipeline.leads.filter(l=>l.person===name&&!['won','lost'].includes(l.col)).length+followups.filter(f=>f.assignee===name&&f.status!=='completed').length*.35;}
+function crmRecommendOwner(category){const people=[...new Set([...DB.staff.map(s=>s.name),...DB.pipeline.leads.map(l=>l.person)].filter(Boolean))];const specialty=category==='NDT'?/technical|quality/i:category==='Geotechnical'?/technical|laboratory/i:/crm|laboratory|technical/i;return people.map(name=>{const u=(DB.users||[]).find(x=>x.name===name),fit=specialty.test(`${u?.role||''} ${u?.dept||''}`)?4:0;return{name,load:crmOwnerWorkload(name),rank:crmOwnerWorkload(name)-fit};}).sort((a,b)=>a.rank-b.rank)[0]?.name||DB.user.name;}
+function crmDuplicateLeads(customer,project='',exclude=''){const ck=crmCustomerKey(customer),pk=String(project||'').toLowerCase().replace(/[^a-z0-9]/g,'');return DB.pipeline.leads.filter(l=>l.id!==exclude&&(crmCustomerKey(l.cust)===ck||(pk&&String(l.proj||'').toLowerCase().replace(/[^a-z0-9]/g,'')===pk)));}
+function crmDuplicateClients(){const g={};allClients().forEach(c=>{const k=crmCustomerKey(c.name);if(k)(g[k]||(g[k]=[])).push(c);});return Object.values(g).filter(a=>a.length>1);}
+function crmConfirmDuplicateLead(){if(!crmPendingLeadData)return;const data=crmPendingLeadData;crmPendingLeadData=null;const lead={id:nextLeadId(),follow:'—',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),...data};DB.pipeline.leads.push(lead);persistPipeline();closeModal();crmRunAutomation('lead_created',lead);crmRunAutomation('lead_saved',lead);toast('Lead created with duplicate review',`${lead.cust} · ${lead.id}`);logAudit('Create','CRM Pipeline',`${lead.cust} lead created after duplicate confirmation`);navigate('pipeline');}
+function crmForecast(){const open=DB.pipeline.leads.filter(l=>!['won','lost'].includes(l.col)),weighted=open.reduce((s,l)=>s+(+l.val||0)*(+l.prob||0)/100,0),best=open.filter(l=>(+l.prob||0)>=50).reduce((s,l)=>s+(+l.val||0),0),commit=open.filter(l=>(+l.prob||0)>=75).reduce((s,l)=>s+(+l.val||0),0),won=DB.pipeline.leads.filter(l=>l.col==='won').reduce((s,l)=>s+(+l.po?.value||+l.val||0),0),target=+crmIntel.targets.monthly||0;return{open,weighted,best,commit,won,target,attainment:target?Math.round(won/target*100):0};}
+function crmAddAutomationLog(rule,record,detail){crmIntel.automationLog.unshift({id:`AUTO-${Date.now()}`,ts:new Date().toISOString(),rule,record,detail,user:'System'});crmIntel.automationLog=crmIntel.automationLog.slice(0,250);persistCrmIntel();logAudit('Automation','CRM Intelligence',`${rule}: ${detail}`);}
+function crmRuleEnabled(id){return crmIntel.rules.find(r=>r.id===id)?.enabled!==false;}
+function crmEnsureFollowup({leadId='',quoteNumber='',customer,subject,due,channel='Call',assignee,priority='med',cadenceId=''}){if(followups.some(f=>f.status!=='completed'&&f.subject===subject&&((leadId&&f.leadId===leadId)||(quoteNumber&&f.quoteNumber===quoteNumber))))return null;const f={id:nextFollowupId(),leadId,quoteNumber,customer,subject,due,time:'10:00',channel,assignee:assignee||DB.user.name,priority,status:'pending',notes:cadenceId?`Created by cadence ${cadenceId}`:'Created by CRM automation',cadenceId,createdAt:new Date().toISOString()};followups.push(f);persistFollowups();return f;}
+function crmRunAutomation(event,record){if(event==='lead_created'&&crmRuleEnabled('rule-new-followup')){const d=new Date();d.setDate(d.getDate()+1);const f=crmEnsureFollowup({leadId:record.id,customer:record.cust,subject:'Initial qualification call',due:localDateISO(d),assignee:record.person,priority:record.prio});if(f)crmAddAutomationLog('New enquiry follow-up',record.id,`Created ${f.id} for ${record.person}`);}if(event==='lead_saved'&&crmRuleEnabled('rule-high-value')&&+record.val>=500000&&record.prio!=='high'){record.prio='high';persistPipeline();crmAddAutomationLog('High-value opportunity attention',record.id,'Priority raised to High');}if(event==='quotation_saved'&&crmRuleEnabled('rule-quote-validity')){const until=new Date(`${record.validUntil||record.date}T12:00:00`);until.setDate(until.getDate()-7);const f=crmEnsureFollowup({quoteNumber:record.number,customer:record.customer,subject:'Quotation validity follow-up',due:localDateISO(until),assignee:record.representative?.name||record.createdBy,priority:'high'});if(f)crmAddAutomationLog('Quotation validity protection',record.number,`Created ${f.id}`);}if(event==='quotation_saved'&&crmRuleEnabled('rule-quote-approval'))crmEvaluateQuotationApproval(record);}
+function crmQuotationRisks(q){const items=q.items||[],maxDisc=Math.max(+q.discount||0,...items.map(x=>+x.disc||0)),custom=items.some(x=>x.custom),belowSor=items.some(x=>x.sorRate!=null&&+x.rate<+x.sorRate);return[{key:'discount',hit:maxDisc>=10,label:`Discount ${maxDisc}%`},{key:'value',hit:+q.total>=500000,label:`Value ${inr(+q.total||0)}`},{key:'custom',hit:custom,label:'Contains out-of-SOR service'},{key:'rate',hit:belowSor,label:'Contains below-SOR rate'}].filter(x=>x.hit);}
+function crmEvaluateQuotationApproval(q){const risks=crmQuotationRisks(q);if(!risks.length)return null;let a=crmIntel.approvals.find(x=>x.quotation===q.number&&x.status==='pending');if(!a){a={id:`APR-${Date.now()}`,quotation:q.number,customer:q.customer,value:+q.total||0,reasons:risks.map(x=>x.label),status:'pending',requestedBy:DB.user.name,requestedAt:new Date().toISOString(),version:JSON.stringify(q)};crmIntel.approvals.unshift(a);q.status='approval_pending';persistQuotations();persistCrmIntel();crmAddAutomationLog('Commercial approval control',q.number,risks.map(x=>x.label).join(', '));}return a;}
+function crmDecideApproval(id,status){if(!enterprisePermission('approve'))return toast('Approval permission required','','err');const a=crmIntel.approvals.find(x=>x.id===id);if(!a||a.status!=='pending')return;a.status=status;a.decidedBy=DB.user.name;a.decidedAt=new Date().toISOString();a.notes=document.getElementById(`approvalNotes-${id}`)?.value.trim()||'';const q=savedQuotations.find(x=>x.number===a.quotation);if(q){q.status=status==='approved'?'approved':'approval_rejected';q.approvalId=a.id;q.approvedVersion=status==='approved'?a.version:'';}persistCrmIntel();persistQuotations();toast(`Quotation ${status}`,a.quotation,status==='rejected'?'err':'ok');logAudit(status==='approved'?'Approve':'Reject','Quotation Approval',`${a.quotation} ${status} by ${DB.user.name}`);state.route==='workspace'?renderWorkspaceTab('approvals'):VIEWS.intelligence(document.getElementById('canvas'));}
+function crmEnrollCadence(leadId,cadenceId){const lead=DB.pipeline.leads.find(x=>x.id===leadId),cad=crmIntel.cadences.find(x=>x.id===cadenceId);if(!lead||!cad)return;if(crmIntel.enrollments.some(x=>x.leadId===leadId&&x.cadenceId===cadenceId&&x.status==='active')){toast('Already enrolled',cad.name,'info');return;}const start=new Date();let created=0;cad.steps.forEach(([subject,offset,channel])=>{const d=new Date(start);d.setDate(d.getDate()+offset);if(crmEnsureFollowup({leadId:lead.id,customer:lead.cust,subject,due:localDateISO(d),channel,assignee:lead.person,priority:lead.prio,cadenceId:cad.id}))created++;});crmIntel.enrollments.push({id:`ENR-${Date.now()}`,leadId,cadenceId,status:'active',startedAt:new Date().toISOString(),created});persistCrmIntel();toast('Cadence started',`${cad.name} · ${created} activities created`);crmAddAutomationLog('Sales cadence',lead.id,`${cad.name}: ${created} activities`);closeModal();if(state.route==='followups')VIEWS.followups(document.getElementById('canvas'));}
+function openCadenceModal(leadId){const lead=DB.pipeline.leads.find(x=>x.id===leadId);if(!lead)return;openModal(`<div class="modal-head"><div class="modal-title">Start Sales Cadence</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="kv"><span class="k">Opportunity</span><span class="v">${esc(lead.cust)} · ${esc(lead.proj)}</span></div><div class="field" style="margin-top:14px"><label>Cadence template</label><select class="select" id="cadenceSelect">${crmIntel.cadences.map(c=>`<option value="${c.id}">${esc(c.name)} · ${c.steps.length} steps</option>`).join('')}</select></div><div class="page-desc">Each step creates a traceable follow-up assigned to ${esc(lead.person)}. Existing matching activities are not duplicated.</div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="crmEnrollCadence('${lead.id}',document.getElementById('cadenceSelect').value)">${I.check}Start Cadence</button></div>`);}
+function crmToggleRule(id,enabled){const r=crmIntel.rules.find(x=>x.id===id);if(r){r.enabled=enabled;persistCrmIntel();toast('Automation rule updated',`${r.name} is ${enabled?'active':'paused'}`);logAudit('Edit','CRM Intelligence',`${r.name} ${enabled?'enabled':'disabled'}`);}}
+function crmSetTarget(value){crmIntel.targets.monthly=Math.max(0,+value||0);persistCrmIntel();VIEWS.intelligence(document.getElementById('canvas'));toast('Forecast target updated',inr(crmIntel.targets.monthly));}
+function crmCustomerTimeline(name){const key=crmCustomerKey(name),events=[];DB.pipeline.leads.filter(x=>crmCustomerKey(x.cust)===key).forEach(x=>{events.push({date:x.createdAt||'',title:`Enquiry ${x.id}`,detail:`${x.proj} · ${x.cat} · ${inr(x.val)}`});if(x.lostReason)events.push({date:x.lostReason.lostAt,title:'Opportunity lost',detail:x.lostReason.reason});if(x.po)events.push({date:x.po.wonAt,title:'Purchase order received',detail:`${x.po.number} · ${inr(x.po.value)}`});});followups.filter(x=>crmCustomerKey(x.customer)===key).forEach(x=>events.push({date:x.completedAt||(x.time?`${x.due}T${x.time}`:x.due),title:`${x.status==='completed'?'Completed':'Scheduled'} ${x.channel}`,detail:`${x.subject}${x.outcome?` · ${x.outcome}`:''}`}));savedQuotations.filter(x=>crmCustomerKey(x.customer)===key).forEach(x=>events.push({date:x.updatedAt||x.date,title:`Quotation ${x.number}`,detail:`${statusBadge(x.status)} · ${inr(x.total||0)}`}));return events.sort((a,b)=>String(b.date).localeCompare(String(a.date)));}
+function crmTimelineWhen(value){const s=String(value||'');return /[T ]\d{1,2}:\d{2}/.test(s)?formatAppDateTime(s):formatAppDate(s);}
+function crmTimelineHTML(name){const events=crmCustomerTimeline(name);return events.length?`<div class="timeline">${events.map((e,i)=>`<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:var(--primary-dark)"></span>${i<events.length-1?'<span class="tl-line"></span>':''}</div><div class="tl-body"><div class="tl-title">${e.title.includes('<span')?e.title:esc(e.title)}</div><div class="tl-meta">${crmTimelineWhen(e.date)} · ${e.detail.includes('<span')?e.detail:esc(e.detail)}</div></div></div>`).join('')}</div>`:'<div class="empty"><h4>No customer activity</h4></div>';}
+VIEWS.intelligence=function(c){const leads=DB.pipeline.leads||[],open=leads.filter(x=>!['won','lost'].includes(x.col)),forecast=crmForecast(),ranked=open.map(l=>({l,s:crmLeadScore(l),h:crmDealHealth(l)})).sort((a,b)=>b.s.score-a.s.score),atRisk=ranked.filter(x=>x.h.level==='At Risk'),dupes=crmDuplicateClients(),pending=crmIntel.approvals.filter(x=>x.status==='pending');c.innerHTML=`${pageHead('CRM Intelligence','Scoring, routing, cadences, deal health, commercial approvals, forecasting and workflow automation.',`<button class="btn btn-ghost" onclick="crmRunDailyReview()">${I.check}Run Health Review</button><button class="btn btn-primary" onclick="navigate('analytics')">${I.analytics}Open Analytics</button>`)}
+  <div class="stat-strip enter"><div class="stat-chip"><div class="sc-val tnum">${ranked.filter(x=>x.s.band==='Hot').length}</div><div class="sc-label">Hot opportunities</div></div><div class="stat-chip"><div class="sc-val tnum" style="color:var(--danger)">${atRisk.length}</div><div class="sc-label">At-risk deals</div></div><div class="stat-chip"><div class="sc-val tnum">${pending.length}</div><div class="sc-label">Pending approvals</div></div><div class="stat-chip"><div class="sc-val tnum">${inr(forecast.weighted)}</div><div class="sc-label">Weighted forecast</div></div><div class="stat-chip"><div class="sc-val tnum">${forecast.attainment}%</div><div class="sc-label">Target attainment</div></div><div class="stat-chip"><div class="sc-val tnum">${dupes.length}</div><div class="sc-label">Duplicate groups</div></div></div>
+  <div class="grid dash-grid enter" style="margin-top:16px"><div class="col-8"><div class="card card-pad"><div class="card-head"><h3>Opportunity Priority Centre</h3><span class="card-sub">Live score, health and recommended action</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Opportunity</th><th>Score</th><th>Health</th><th>Owner</th><th>Forecast</th><th>Next Best Action</th><th></th></tr></thead><tbody>${ranked.map(x=>`<tr onclick="openLeadDrawer('${x.l.id}')"><td><b>${esc(x.l.cust)}</b><div class="page-desc">${esc(x.l.proj)}</div></td><td><span class="crm-score ${x.s.band.toLowerCase()}">${x.s.score} · ${x.s.band}</span></td><td><span style="color:${x.h.color};font-weight:700">${x.h.level}</span><div class="page-desc">${x.h.age}d since activity</div></td><td>${esc(x.l.person)}<div class="page-desc">Suggested: ${esc(crmRecommendOwner(x.l.cat))}</div></td><td>${inr(x.l.val*(x.l.prob||0)/100)}</td><td>${esc(x.s.next)}</td><td onclick="event.stopPropagation()"><button class="mini-act" onclick="openCadenceModal('${x.l.id}')" title="Start cadence">${I.clock}</button></td></tr>`).join('')||'<tr><td colspan="7">No open opportunities.</td></tr>'}</tbody></table></div></div></div>
+  <div class="col-4"><div class="card card-pad"><div class="card-head"><h3>Forecast Commit</h3></div>${[['Open pipeline',open.reduce((s,x)=>s+(+x.val||0),0)],['Weighted forecast',forecast.weighted],['Best case',forecast.best],['Committed',forecast.commit],['Won value',forecast.won]].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v tnum">${inr(x[1])}</span></div>`).join('')}<div class="field" style="margin-top:12px"><label>Monthly target</label><input class="input tnum" type="number" value="${forecast.target}" onchange="crmSetTarget(this.value)"></div></div></div></div>
+  <div class="grid dash-grid enter"><div class="col-6"><div class="card card-pad"><div class="card-head"><h3>Commercial Approval Inbox</h3><span class="badge ${pending.length?'badge-expiring':'badge-valid'}">${pending.length} pending</span></div>${pending.map(a=>`<div class="crm-approval"><div><b>${esc(a.quotation)}</b><small>${esc(a.customer)} · ${inr(a.value)}</small><p>${a.reasons.map(esc).join(' · ')}</p></div><textarea class="input" id="approvalNotes-${a.id}" placeholder="Decision notes"></textarea><div><button class="btn btn-sm btn-ghost" onclick="crmDecideApproval('${a.id}','rejected')">Reject</button><button class="btn btn-sm btn-primary" onclick="crmDecideApproval('${a.id}','approved')">Approve & Lock</button></div></div>`).join('')||'<div class="empty"><h4>No approvals waiting</h4><p>Commercial deviations will appear here automatically.</p></div>'}</div></div>
+  <div class="col-6"><div class="card card-pad"><div class="card-head"><h3>Workflow Automation</h3><span class="card-sub">Rules operate on existing CRM records</span></div>${crmIntel.rules.map(r=>`<label class="crm-rule"><input type="checkbox" ${r.enabled?'checked':''} onchange="crmToggleRule('${r.id}',this.checked)"><span><b>${esc(r.name)}</b><small>${esc(r.condition)} → ${esc(r.action)}</small></span></label>`).join('')}</div></div></div>
+  <div class="grid dash-grid enter"><div class="col-6"><div class="card card-pad"><div class="card-head"><h3>Sales Cadences</h3></div>${crmIntel.cadences.map(cad=>`<div class="kv"><span class="v"><b>${esc(cad.name)}</b><small style="display:block;color:var(--text-muted)">${cad.steps.length} steps · ${esc(cad.category)}</small></span><span class="v">${crmIntel.enrollments.filter(x=>x.cadenceId===cad.id&&x.status==='active').length} active</span></div>`).join('')}</div></div><div class="col-6"><div class="card card-pad"><div class="card-head"><h3>Data Quality</h3></div><div class="kv"><span class="k">Duplicate client groups</span><span class="v">${dupes.length}</span></div><div class="kv"><span class="k">Unassigned opportunities</span><span class="v">${leads.filter(x=>!x.person).length}</span></div><div class="kv"><span class="k">Missing values</span><span class="v">${leads.filter(x=>!+x.val).length}</span></div><div class="kv"><span class="k">No open follow-up</span><span class="v">${open.filter(l=>!followups.some(f=>f.leadId===l.id&&f.status!=='completed')).length}</span></div></div></div></div>`;};
+function crmRunDailyReview(){const risks=DB.pipeline.leads.filter(l=>crmDealHealth(l).level==='At Risk');risks.forEach(l=>crmAddAutomationLog('Stale opportunity alert',l.id,`${l.cust}: ${crmDealHealth(l).age} days since activity`));toast('Health review complete',`${risks.length} at-risk opportunities identified`,risks.length?'info':'ok');VIEWS.intelligence(document.getElementById('canvas'));}
+
+/* ---------- ENTERPRISE SALES OPERATIONS ---------- */
+const ENTERPRISE_CRM_KEY='pth_enterprise_crm_v1';
+const ENTERPRISE_ACTIVITY_DEFAULTS=['Call','Email','WhatsApp','Meeting','Site Visit','Technical Discussion','Sample Collection','Commercial Negotiation'];
+let enterpriseCRM=(()=>{const defaults={siteVisits:[],competitors:[],clientFinance:{},quotationRevisions:[],customFields:[],activityTypes:ENTERPRISE_ACTIVITY_DEFAULTS.map((name,i)=>({id:`ACT-${i+1}`,name,active:true,color:['#176b4d','#2563eb','#16a34a','#7c3aed','#d97706','#0891b2','#be123c','#475569'][i]})),savedReports:[],reportSchedules:[],permissions:{'Laboratory Head':{financial:true,pricing:true,allRecords:true,approve:true,configure:true},'CRM Manager':{financial:true,pricing:true,allRecords:true,approve:false,configure:true},'Quality Manager':{financial:false,pricing:false,allRecords:true,approve:false,configure:false},'Technical Manager':{financial:false,pricing:true,allRecords:false,approve:false,configure:false},'Authorised Signatory':{financial:false,pricing:false,allRecords:false,approve:false,configure:false}},managementApprovals:[],retentionSettings:{dormantDays:45,criticalDays:90},reportLastRun:{}};try{const s=JSON.parse(localStorage.getItem(ENTERPRISE_CRM_KEY)||'{}');return{...defaults,...s,permissions:{...defaults.permissions,...(s.permissions||{})},retentionSettings:{...defaults.retentionSettings,...(s.retentionSettings||{})}};}catch(e){return defaults;}})();
+function persistEnterpriseCRM(){try{localStorage.setItem(ENTERPRISE_CRM_KEY,JSON.stringify(enterpriseCRM));}catch(e){}}
+function enterpriseRole(){return DB.user.role||'User';}
+function enterprisePermission(key){const p=enterpriseCRM.permissions[enterpriseRole()]||{};return p[key]===true;}
+function enterpriseOwnerAliases(){return new Set([DB.user.name,DB.user.initials,...analyticsPersonAliases(DB.user.name)].filter(Boolean).map(x=>String(x).toLowerCase()));}
+function canViewCrmRecord(record){if(enterprisePermission('allRecords'))return true;const aliases=enterpriseOwnerAliases(),owner=String(record.person||record.assignee||record.createdBy||record.representative?.name||'').toLowerCase();return !owner||aliases.has(owner);}
+function maskFinancial(value){return enterprisePermission('financial')?inr(+value||0):'Restricted';}
+function customFieldDefinitions(module){return enterpriseCRM.customFields.filter(x=>x.module===module&&x.active!==false);}
+function customFieldValues(record,module){return record.customFields?.[module]||{};}
+function customFieldsForm(module,record={}){const values=customFieldValues(record,module);return customFieldDefinitions(module).map(f=>`<div class="field"><label>${esc(f.label)}${f.required?' <span class="req">*</span>':''}</label>${f.type==='select'?`<select class="select custom-field-input" data-custom-module="${module}" data-custom-id="${f.id}">${f.options.map(x=>`<option ${values[f.id]===x?'selected':''}>${esc(x)}</option>`).join('')}</select>`:`<input class="input custom-field-input" data-custom-module="${module}" data-custom-id="${f.id}" type="${f.type==='number'?'number':f.type==='date'?'date':'text'}" value="${esc(values[f.id]||'')}">`}</div>`).join('');}
+function collectCustomFields(module){const values={};document.querySelectorAll(`.custom-field-input[data-custom-module="${module}"]`).forEach(x=>values[x.dataset.customId]=x.value);return values;}
+function clientFinance(name){return enterpriseCRM.clientFinance[crmCustomerKey(name)]||{creditLimit:0,creditDays:30,outstanding:0,overdue:0,totalBilled:0,totalPaid:0,lastPayment:'',riskOverride:'auto',payments:[]};}
+function creditRisk(name){const f=clientFinance(name),util=f.creditLimit?f.outstanding/f.creditLimit*100:0,overduePct=f.outstanding?f.overdue/f.outstanding*100:0,late=f.lastPayment?crmDaysSince(f.lastPayment):999;let score=Math.min(100,Math.round(util*.35+overduePct*.45+Math.min(100,late)*.2));if(f.riskOverride!=='auto')return{score:f.riskOverride==='high'?90:f.riskOverride==='medium'?55:20,level:titleCaseSafe(f.riskOverride),color:f.riskOverride==='high'?'var(--danger)':f.riskOverride==='medium'?'var(--warning)':'var(--primary-dark)'};return{score,level:score>=70?'High':score>=40?'Medium':'Low',color:score>=70?'var(--danger)':score>=40?'var(--warning)':'var(--primary-dark)'};}
+function titleCaseSafe(v){return String(v||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());}
+function customerLastActivityDate(name){const e=crmCustomerTimeline(name)[0];return e?.date||'';}
+function retentionState(name){const days=crmDaysSince(customerLastActivityDate(name)),won=DB.pipeline.leads.some(x=>crmCustomerKey(x.cust)===crmCustomerKey(name)&&x.col==='won'),critical=+enterpriseCRM.retentionSettings.criticalDays||90,dormant=+enterpriseCRM.retentionSettings.dormantDays||45;return{days,won,level:days>=critical?'Critical':days>=dormant?'Dormant':days>=Math.round(dormant*.65)?'Cooling':'Engaged',color:days>=critical?'var(--danger)':days>=dormant?'var(--warning)':days>=Math.round(dormant*.65)?'var(--info)':'var(--primary-dark)',action:days>=critical?'Executive reconnect and account recovery':days>=dormant?'Schedule relationship follow-up':days>=Math.round(dormant*.65)?'Share relevant service update':'Maintain engagement cadence'};}
+function dataQualityIssues(){const issues=[];DB.pipeline.leads.forEach(l=>{if(!l.cust)issues.push({module:'Enquiries',record:l.id,issue:'Missing client',severity:'high'});if(!l.person)issues.push({module:'Enquiries',record:l.id,issue:'Unassigned owner',severity:'high'});if(!+l.val)issues.push({module:'Enquiries',record:l.id,issue:'Missing expected value',severity:'medium'});if(!followups.some(f=>f.leadId===l.id&&f.status!=='completed')&&!['won','lost'].includes(l.col))issues.push({module:'Enquiries',record:l.id,issue:'No open follow-up',severity:'medium'});});crmDuplicateClients().forEach((a,i)=>issues.push({module:'Clients',record:a.map(x=>x.name).join(' / '),issue:'Possible duplicate clients',severity:'high'}));savedQuotations.forEach(q=>{if(!q.items?.length)issues.push({module:'Quotations',record:q.number,issue:'Legacy quotation without item detail',severity:'medium'});if(!q.kindAttention)issues.push({module:'Quotations',record:q.number,issue:'Kind Attention missing',severity:'low'});});return issues;}
+function managementApproval(type,record,title,amount=0,reasons=[]){let a=enterpriseCRM.managementApprovals.find(x=>x.type===type&&x.record===record&&x.status==='pending');if(!a){a={id:`MAP-${Date.now()}`,type,record,title,amount,reasons,status:'pending',requestedBy:DB.user.name,requestedAt:new Date().toISOString()};enterpriseCRM.managementApprovals.unshift(a);persistEnterpriseCRM();logAudit('Request Approval','Management Inbox',`${type} ${record}`);}return a;}
+function decideManagementApproval(id,status){if(!enterprisePermission('approve')){toast('Approval permission required','Your role cannot decide management approvals.','err');return;}const a=enterpriseCRM.managementApprovals.find(x=>x.id===id);if(!a||a.status!=='pending')return;a.status=status;a.decidedBy=DB.user.name;a.decidedAt=new Date().toISOString();a.notes=document.getElementById(`mapNotes-${id}`)?.value.trim()||'';persistEnterpriseCRM();logAudit(status==='approved'?'Approve':'Reject','Management Inbox',`${a.type} ${a.record}`);toast(`Request ${status}`,a.record,status==='rejected'?'err':'ok');VIEWS.workspace(document.getElementById('canvas'));}
+function nextSiteVisitId(){return`SV-${String(Math.max(0,...enterpriseCRM.siteVisits.map(x=>+String(x.id).replace(/\D/g,'')||0))+1).padStart(4,'0')}`;}
+function openSiteVisitModal(id=''){const v=enterpriseCRM.siteVisits.find(x=>x.id===id),lead=v?DB.pipeline.leads.find(x=>x.id===v.leadId):null,rec=v||{leadId:'',customer:'',site:'',date:localDateISO(),time:'10:00',owner:DB.user.name,purpose:'Requirement assessment',contacts:'',status:'planned'};openModal(`<div class="modal-head"><div class="modal-title">${v?'Edit':'Plan'} Site Visit</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Linked Opportunity</label><select class="select" id="svLead" onchange="syncSiteVisitLead(this.value)"><option value="">Not linked</option>${DB.pipeline.leads.filter(canViewCrmRecord).map(l=>`<option value="${l.id}" ${rec.leadId===l.id?'selected':''}>${esc(l.id)} · ${esc(l.cust)} · ${esc(l.proj)}</option>`).join('')}</select></div><div class="field"><label>Client <span class="req">*</span></label><input class="input" id="svCustomer" value="${esc(rec.customer||lead?.cust||'')}"></div><div class="field"><label>Site / Address <span class="req">*</span></label><textarea class="input" id="svSite" style="min-height:56px">${esc(rec.site)}</textarea></div><div class="form-grid"><div class="field"><label>Date</label><input class="input" id="svDate" type="date" value="${rec.date}"></div><div class="field"><label>Time</label><input class="input" id="svTime" type="time" value="${rec.time}"></div></div><div class="form-grid"><div class="field"><label>Assigned To</label><select class="select" id="svOwner">${[...new Set([...DB.staff.map(x=>x.name),...DB.pipeline.leads.map(x=>x.person)])].filter(Boolean).map(x=>`<option ${rec.owner===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Purpose</label><select class="select" id="svPurpose">${['Requirement assessment','Sample collection','Site investigation','NDT inspection','Technical meeting','Complaint resolution','Progress review'].map(x=>`<option ${rec.purpose===x?'selected':''}>${x}</option>`).join('')}</select></div></div><div class="field"><label>Customer Contacts / Instructions</label><textarea class="input" id="svContacts" style="min-height:55px">${esc(rec.contacts)}</textarea></div>${customFieldsForm('site_visit',rec)}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSiteVisit('${id}')">${I.check}Save Visit Plan</button></div>`);}
+function syncSiteVisitLead(id){const l=DB.pipeline.leads.find(x=>x.id===id);if(l)document.getElementById('svCustomer').value=l.cust;}
+function saveSiteVisit(id=''){const customer=document.getElementById('svCustomer').value.trim(),site=document.getElementById('svSite').value.trim(),date=document.getElementById('svDate').value;if(!customer||!site||!date){toast('Visit details required','Client, site and date are mandatory.','err');return;}const existing=enterpriseCRM.siteVisits.find(x=>x.id===id),value={...(existing||{}),id:id||nextSiteVisitId(),leadId:document.getElementById('svLead').value,customer,site,date,time:document.getElementById('svTime').value,owner:document.getElementById('svOwner').value,purpose:document.getElementById('svPurpose').value,contacts:document.getElementById('svContacts').value.trim(),status:existing?.status||'planned',customFields:{...(existing?.customFields||{}),site_visit:collectCustomFields('site_visit')},updatedAt:new Date().toISOString()};if(existing)Object.assign(existing,value);else enterpriseCRM.siteVisits.push(value);const f=crmEnsureFollowup({leadId:value.leadId,customer,subject:`Site visit: ${value.purpose}`,due:date,channel:'Site Visit',assignee:value.owner,priority:'high'});value.followupId=value.followupId||f?.id||'';persistEnterpriseCRM();closeModal();toast(existing?'Site visit updated':'Site visit planned',`${value.id} · ${customer}`);logAudit(existing?'Edit':'Create','Site Visits',`${value.id} · ${customer}`);if(state.route==='workspace')VIEWS.workspace(document.getElementById('canvas'));}
+function recordSiteVisitCheckIn(id,position=null){const v=enterpriseCRM.siteVisits.find(x=>x.id===id);if(!v)return;v.status='checked_in';v.checkedInAt=new Date().toISOString();v.location=position?{lat:+position.coords.latitude.toFixed(6),lng:+position.coords.longitude.toFixed(6),accuracy:Math.round(position.coords.accuracy)}:{manual:true};persistEnterpriseCRM();toast('Site visit checked in',`${v.customer} · ${formatAppTime(new Date())}`);logAudit('Check-in','Site Visits',`${v.id} at ${v.location.lat||'manual location'}`);VIEWS.workspace(document.getElementById('canvas'));}
+function checkInSiteVisit(id){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(position=>recordSiteVisitCheckIn(id,position),()=>{openModal(`<div class="modal-head"><div class="modal-title">Location unavailable</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Location permission was not available. You may record a manual check-in with an audit note.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="closeModal();recordSiteVisitCheckIn('${id}')">Manual Check-in</button></div>`);},{enableHighAccuracy:true,timeout:8000});else recordSiteVisitCheckIn(id);}
+function openVisitReport(id){const v=enterpriseCRM.siteVisits.find(x=>x.id===id);if(!v)return;openModal(`<div class="modal-head"><div class="modal-title">Site Visit Report · ${v.id}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="kv"><span class="k">Client / Site</span><span class="v">${esc(v.customer)} · ${esc(v.site)}</span></div><div class="field" style="margin-top:12px"><label>Persons Met</label><input class="input" id="svrMet" value="${esc(v.report?.personsMet||'')}"></div><div class="field"><label>Observations</label><textarea class="input" id="svrObservations" style="min-height:85px">${esc(v.report?.observations||'')}</textarea></div><div class="field"><label>Requirements / Scope Identified</label><textarea class="input" id="svrScope" style="min-height:75px">${esc(v.report?.scope||'')}</textarea></div><div class="field"><label>Next Action</label><input class="input" id="svrNext" value="${esc(v.report?.nextAction||'Prepare technical proposal')}"></div><div class="form-grid"><div class="field"><label>Next Action Due</label><input class="input" type="date" id="svrDue" value="${v.report?.due||localDateISO()}"></div><div class="field"><label>Outcome</label><select class="select" id="svrOutcome">${['Opportunity confirmed','Further information required','Quotation requested','Sample collection required','No immediate opportunity'].map(x=>`<option ${v.report?.outcome===x?'selected':''}>${x}</option>`).join('')}</select></div></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveVisitReport('${id}')">${I.check}Complete Visit Report</button></div>`);}
+function saveVisitReport(id){const v=enterpriseCRM.siteVisits.find(x=>x.id===id);if(!v)return;const due=document.getElementById('svrDue').value;v.report={personsMet:document.getElementById('svrMet').value.trim(),observations:document.getElementById('svrObservations').value.trim(),scope:document.getElementById('svrScope').value.trim(),nextAction:document.getElementById('svrNext').value.trim(),due,outcome:document.getElementById('svrOutcome').value,submittedBy:DB.user.name,submittedAt:new Date().toISOString()};v.status='completed';v.completedAt=new Date().toISOString();crmEnsureFollowup({leadId:v.leadId,customer:v.customer,subject:v.report.nextAction||'Site visit next action',due,channel:'Technical Discussion',assignee:v.owner,priority:'high'});const f=followups.find(x=>x.id===v.followupId);if(f){f.status='completed';f.completedAt=v.completedAt;f.outcome=v.report.outcome;persistFollowups();}persistEnterpriseCRM();closeModal();toast('Visit report completed',`${v.id} · next action scheduled`);logAudit('Complete','Site Visits',`${v.id} · ${v.report.outcome}`);VIEWS.workspace(document.getElementById('canvas'));}
+function openCompetitorModal(id=''){if(!enterprisePermission('pricing')){toast('Pricing permission required','Your role cannot edit competitor intelligence.','err');return;}const c=enterpriseCRM.competitors.find(x=>x.id===id),rec=c||{id:`COMP-${String(enterpriseCRM.competitors.length+1).padStart(3,'0')}`,name:'',strength:'',weakness:'',priceIndex:100,turnaround:'',scope:'',notes:''};openModal(`<div class="modal-head"><div class="modal-title">${c?'Edit':'Add'} Competitor Intelligence</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="form-grid"><div class="field"><label>Competitor ID</label><input class="input" id="compId" value="${rec.id}" readonly></div><div class="field"><label>Name <span class="req">*</span></label><input class="input" id="compName" value="${esc(rec.name)}"></div></div><div class="form-grid"><div class="field"><label>Price Index (PTH = 100)</label><input class="input" type="number" id="compPrice" min="1" value="${rec.priceIndex}"></div><div class="field"><label>Typical Turnaround</label><input class="input" id="compTat" value="${esc(rec.turnaround||'')}"></div></div><div class="field"><label>Accreditation / Service Scope</label><input class="input" id="compScope" value="${esc(rec.scope||'')}"></div><div class="form-grid"><div class="field"><label>Strength</label><textarea class="input" id="compStrength">${esc(rec.strength)}</textarea></div><div class="field"><label>Weakness</label><textarea class="input" id="compWeakness">${esc(rec.weakness)}</textarea></div></div><div class="field"><label>Competitive Notes</label><textarea class="input" id="compNotes">${esc(rec.notes||'')}</textarea></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCompetitor('${id}')">${I.check}Save Intelligence</button></div>`);}
+function saveCompetitor(id=''){const name=document.getElementById('compName').value.trim();if(!name){toast('Competitor name required','','err');return;}const existing=enterpriseCRM.competitors.find(x=>x.id===id),value={id:document.getElementById('compId').value,name,priceIndex:Math.max(1,+document.getElementById('compPrice').value||100),turnaround:document.getElementById('compTat').value.trim(),scope:document.getElementById('compScope').value.trim(),strength:document.getElementById('compStrength').value.trim(),weakness:document.getElementById('compWeakness').value.trim(),notes:document.getElementById('compNotes').value.trim(),updatedAt:new Date().toISOString()};if(existing)Object.assign(existing,value);else enterpriseCRM.competitors.push(value);persistEnterpriseCRM();closeModal();toast('Competitor intelligence saved',name);logAudit(existing?'Edit':'Create','Competitor Intelligence',name);VIEWS.workspace(document.getElementById('canvas'));}
+function pricingIntelligenceRows(){const priced=(window.SOR||[]).flatMap(c=>(c.tests||[]).filter(t=>t.rate!=null).map(t=>({category:c.name,name:t.name,rate:t.rate}))),quoted=savedQuotations.flatMap(q=>(q.items||[]).filter(x=>!x.onReq).map(x=>({category:x.category,name:x.name,rate:+x.rate||0,disc:+x.disc||0})));return Object.entries(ovGroup(quoted,x=>x.category)).map(([category,a])=>{const sor=priced.filter(x=>x.category===category),avgSor=sor.length?sor.reduce((s,x)=>s+x.rate,0)/sor.length:0,avgQuote=a.length?a.reduce((s,x)=>s+x.rate*(1-x.disc/100),0)/a.length:0;return{category,lines:a.length,avgSor,avgQuote,variance:avgSor?Math.round((avgQuote-avgSor)/avgSor*100):0};}).sort((a,b)=>b.lines-a.lines);}
+function openClientFinanceModal(name){if(!enterprisePermission('financial')){toast('Financial permission required','Your role cannot access credit and payment data.','err');return;}const f=clientFinance(name);openModal(`<div class="modal-head"><div class="modal-title">Credit & Payment Profile · ${esc(name)}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="form-grid"><div class="field"><label>Credit Limit (₹)</label><input class="input" id="cfLimit" type="number" min="0" value="${f.creditLimit}"></div><div class="field"><label>Credit Days</label><input class="input" id="cfDays" type="number" min="0" value="${f.creditDays}"></div></div><div class="form-grid"><div class="field"><label>Total Billed (₹)</label><input class="input" id="cfBilled" type="number" min="0" value="${f.totalBilled}"></div><div class="field"><label>Total Paid (₹)</label><input class="input" id="cfPaid" type="number" min="0" value="${f.totalPaid}"></div></div><div class="form-grid"><div class="field"><label>Outstanding (₹)</label><input class="input" id="cfOutstanding" type="number" min="0" value="${f.outstanding}"></div><div class="field"><label>Overdue (₹)</label><input class="input" id="cfOverdue" type="number" min="0" value="${f.overdue}"></div></div><div class="form-grid"><div class="field"><label>Last Payment Date</label><input class="input" id="cfLast" type="date" value="${f.lastPayment}"></div><div class="field"><label>Risk Override</label><select class="select" id="cfRisk"><option value="auto">Automatic</option>${['low','medium','high'].map(x=>`<option value="${x}" ${f.riskOverride===x?'selected':''}>${titleCaseSafe(x)}</option>`).join('')}</select></div></div><div class="field"><label>Add Payment Note</label><input class="input" id="cfNote" placeholder="Reference / collection note"></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClientFinance(${esc(JSON.stringify(name))})">${I.check}Save Financial Profile</button></div>`);}
+function saveClientFinance(name){const key=crmCustomerKey(name),old=clientFinance(name),paid=Math.max(0,+document.getElementById('cfPaid').value||0),note=document.getElementById('cfNote').value.trim(),value={...old,creditLimit:Math.max(0,+document.getElementById('cfLimit').value||0),creditDays:Math.max(0,+document.getElementById('cfDays').value||0),totalBilled:Math.max(0,+document.getElementById('cfBilled').value||0),totalPaid:paid,outstanding:Math.max(0,+document.getElementById('cfOutstanding').value||0),overdue:Math.max(0,+document.getElementById('cfOverdue').value||0),lastPayment:document.getElementById('cfLast').value,riskOverride:document.getElementById('cfRisk').value,updatedAt:new Date().toISOString()};if(note)value.payments=[...(old.payments||[]),{date:localDateISO(),amount:Math.max(0,paid-(old.totalPaid||0)),note,user:DB.user.name}];enterpriseCRM.clientFinance[key]=value;if(value.overdue>value.creditLimit*.5&&value.overdue>0)managementApproval('Credit Risk',name,`High overdue exposure for ${name}`,value.overdue,[`Outstanding ${inr(value.outstanding)}`,`Overdue ${inr(value.overdue)}`]);persistEnterpriseCRM();closeModal();toast('Financial profile saved',`${name} · ${creditRisk(name).level} risk`);logAudit('Edit','Client Finance',`${name} credit profile updated`);openClientDrawer(name);}
+function captureQuotationRevision(previous,next){if(!previous)return;const revisions=enterpriseCRM.quotationRevisions.filter(x=>x.quotation===next.number),version=revisions.length+1;enterpriseCRM.quotationRevisions.push({id:`REV-${Date.now()}`,quotation:next.number,version,createdAt:new Date().toISOString(),createdBy:DB.user.name,before:JSON.parse(JSON.stringify(previous)),after:JSON.parse(JSON.stringify(next))});persistEnterpriseCRM();}
+function quotationRevisionDiff(rev){const before=rev.before||{},after=rev.after||{},bItems=before.items||[],aItems=after.items||[],key=x=>`${x.category}|${x.name}|${x.code}`,bm=new Map(bItems.map(x=>[key(x),x])),am=new Map(aItems.map(x=>[key(x),x])),keys=[...new Set([...bm.keys(),...am.keys()])];return keys.map(k=>{const b=bm.get(k),a=am.get(k);if(!b)return{type:'Added',description:a.name,before:'—',after:`Qty ${a.qty} · ${inr(a.rate)}`};if(!a)return{type:'Removed',description:b.name,before:`Qty ${b.qty} · ${inr(b.rate)}`,after:'—'};const changes=[];if(+b.qty!==+a.qty)changes.push(`Qty ${b.qty} → ${a.qty}`);if(+b.rate!==+a.rate)changes.push(`Rate ${inr(b.rate)} → ${inr(a.rate)}`);if(+b.disc!==+a.disc)changes.push(`Discount ${b.disc||0}% → ${a.disc||0}%`);return changes.length?{type:'Modified',description:a.name,before:changes.join('; '),after:''}:null;}).filter(Boolean);}
+function openQuotationComparison(number){const revisions=enterpriseCRM.quotationRevisions.filter(x=>x.quotation===number).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))),latest=revisions[0];if(!latest){toast('No revision comparison available','Modify and save this quotation to create its first comparison.','info');return;}const rows=quotationRevisionDiff(latest);openModal(`<div class="modal-head"><div class="modal-title">Quotation Revision Comparison</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="kv"><span class="k">Quotation</span><span class="v">${esc(number)}</span></div><div class="kv"><span class="k">Compared Version</span><span class="v">v${latest.version} · ${formatAppDateTime(latest.createdAt)} · ${esc(latest.createdBy)}</span></div><div class="revision-summary"><div><span>Previous Total</span><b>${inr(latest.before.total||0)}</b></div><div><span>Current Total</span><b>${inr(latest.after.total||0)}</b></div><div><span>Variance</span><b>${inr((latest.after.total||0)-(latest.before.total||0))}</b></div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Change</th><th>Description</th><th>Details</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${statusBadge(x.type==='Added'?'valid':x.type==='Removed'?'expired':'review')}</td><td>${esc(x.description)}</td><td>${esc(x.before)}${x.after?` → ${esc(x.after)}`:''}</td></tr>`).join('')||'<tr><td colspan="3">No line-level changes; commercial metadata or terms changed.</td></tr>'}</tbody></table></div><div class="field" style="margin-top:12px"><label>Terms Changed</label><div class="page-desc">${latest.before.terms===latest.after.terms?'No':'Yes — review both stored versions before issue.'}</div></div></div><div class="modal-foot"><button class="btn btn-primary" onclick="closeModal()">Close Comparison</button></div>`);}
+function crossSellRecommendations(customer){const used=new Set();savedQuotations.filter(q=>crmCustomerKey(q.customer)===crmCustomerKey(customer)).flatMap(q=>q.items||[]).forEach(x=>used.add(x.category));DB.pipeline.leads.filter(l=>crmCustomerKey(l.cust)===crmCustomerKey(customer)).forEach(l=>used.add(l.cat));const map={Geotechnical:['SOIL INVESTIGATION','PILE TESTING','GSB/WMM/WBM'],NDT:['NON-DESTRUCTIVE','ULTRASONIC','WELD'],Calibration:['EQUIPMENT CALIBRATION','NDT'],Inspection:['NON-DESTRUCTIVE','COATING','WELD'],'Material Testing':['CONCRETE','STEEL','CEMENT','AGGREGATE']},wanted=[...used].flatMap(x=>map[x]||[]),cats=(window.SOR||[]).filter(c=>wanted.some(w=>c.name.toUpperCase().includes(w))&&!used.has(c.name));return cats.slice(0,6).map(c=>({category:c.name,tests:c.tests.length,reason:`Complements ${[...used].slice(0,2).join(' / ')||'current customer scope'}`,potential:(c.tests||[]).filter(x=>x.rate!=null).slice(0,5).reduce((s,x)=>s+x.rate,0)}));}
+function openEnterpriseSettings(){if(!enterprisePermission('configure')){toast('Configuration permission required','Your role cannot modify enterprise CRM settings.','err');return;}openModal(`<div class="modal-head"><div class="modal-title">Enterprise CRM Configuration</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="drawer-tabs"><button class="drawer-tab active" data-config-tab="fields">Custom Fields</button><button class="drawer-tab" data-config-tab="activities">Activity Types</button><button class="drawer-tab" data-config-tab="permissions">Permissions</button><button class="drawer-tab" data-config-tab="retention">Retention</button></div><div class="config-pane" id="config-fields"><div class="form-grid"><div class="field"><label>Module</label><select class="select" id="newFieldModule">${['lead','client','quotation','site_visit'].map(x=>`<option value="${x}">${titleCaseSafe(x)}</option>`).join('')}</select></div><div class="field"><label>Field Label</label><input class="input" id="newFieldLabel"></div></div><div class="form-grid"><div class="field"><label>Type</label><select class="select" id="newFieldType"><option value="text">Text</option><option value="number">Number</option><option value="date">Date</option><option value="select">Dropdown</option></select></div><div class="field"><label>Dropdown Options (comma separated)</label><input class="input" id="newFieldOptions"></div></div><label style="display:flex;gap:7px"><input type="checkbox" id="newFieldRequired"> Required field</label><button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="addCustomField()">${I.plus}Add Field</button><div id="customFieldList" style="margin-top:14px">${enterpriseCRM.customFields.map(f=>`<div class="kv"><span class="v"><b>${esc(f.label)}</b><small style="display:block">${titleCaseSafe(f.module)} · ${titleCaseSafe(f.type)}</small></span><button class="mini-act danger" onclick="removeCustomField('${f.id}')">${I.x}</button></div>`).join('')||'<div class="page-desc">No custom fields configured.</div>'}</div></div><div class="config-pane" id="config-activities" style="display:none"><div style="display:flex;gap:8px"><input class="input" id="newActivityName" placeholder="New activity type"><input class="input" id="newActivityColor" type="color" value="#176b4d" style="width:70px"><button class="btn btn-primary" onclick="addActivityType()">Add</button></div>${enterpriseCRM.activityTypes.map(x=>`<label class="crm-rule"><input type="checkbox" ${x.active?'checked':''} onchange="toggleActivityType('${x.id}',this.checked)"><i style="width:10px;height:10px;background:${x.color}"></i><span><b>${esc(x.name)}</b></span></label>`).join('')}</div><div class="config-pane" id="config-permissions" style="display:none">${Object.entries(enterpriseCRM.permissions).map(([role,p])=>`<div class="permission-row"><b>${esc(role)}</b>${[['financial','Financial data'],['pricing','Pricing intelligence'],['allRecords','All records'],['approve','Management approval'],['configure','Configuration']].map(([k,l])=>`<label><input type="checkbox" ${p[k]?'checked':''} onchange="setRolePermission(${esc(JSON.stringify(role))},'${k}',this.checked)">${l}</label>`).join('')}</div>`).join('')}</div><div class="config-pane" id="config-retention" style="display:none"><div class="form-grid"><div class="field"><label>Dormant after days</label><input class="input" id="retDormant" type="number" value="${enterpriseCRM.retentionSettings.dormantDays}"></div><div class="field"><label>Critical after days</label><input class="input" id="retCritical" type="number" value="${enterpriseCRM.retentionSettings.criticalDays}"></div></div><button class="btn btn-primary" onclick="saveRetentionSettings()">Save Retention Rules</button></div></div><div class="modal-foot"><button class="btn btn-primary" onclick="closeModal()">Done</button></div>`);const modal=document.querySelector('.modal');modal.querySelectorAll('[data-config-tab]').forEach(btn=>btn.onclick=()=>{modal.querySelectorAll('[data-config-tab]').forEach(x=>x.classList.remove('active'));modal.querySelectorAll('.config-pane').forEach(x=>x.style.display='none');btn.classList.add('active');modal.querySelector(`#config-${btn.dataset.configTab}`).style.display='block';});}
+function addCustomField(){const label=document.getElementById('newFieldLabel').value.trim();if(!label)return toast('Field label required','','err');enterpriseCRM.customFields.push({id:`CF-${Date.now()}`,module:document.getElementById('newFieldModule').value,label,type:document.getElementById('newFieldType').value,options:document.getElementById('newFieldOptions').value.split(',').map(x=>x.trim()).filter(Boolean),required:document.getElementById('newFieldRequired').checked,active:true});persistEnterpriseCRM();closeModal();openEnterpriseSettings();toast('Custom field added',label);}
+function removeCustomField(id){enterpriseCRM.customFields=enterpriseCRM.customFields.filter(x=>x.id!==id);persistEnterpriseCRM();closeModal();openEnterpriseSettings();}
+function addActivityType(){const name=document.getElementById('newActivityName').value.trim();if(!name)return;enterpriseCRM.activityTypes.push({id:`ACT-${Date.now()}`,name,color:document.getElementById('newActivityColor').value,active:true});persistEnterpriseCRM();closeModal();openEnterpriseSettings();}
+function toggleActivityType(id,active){const x=enterpriseCRM.activityTypes.find(x=>x.id===id);if(x){x.active=active;persistEnterpriseCRM();}}
+function setRolePermission(role,key,value){enterpriseCRM.permissions[role]||(enterpriseCRM.permissions[role]={});enterpriseCRM.permissions[role][key]=value;persistEnterpriseCRM();logAudit('Edit','Permissions',`${role}: ${key} ${value?'enabled':'disabled'}`);}
+function saveRetentionSettings(){enterpriseCRM.retentionSettings={dormantDays:Math.max(1,+document.getElementById('retDormant').value||45),criticalDays:Math.max(1,+document.getElementById('retCritical').value||90)};persistEnterpriseCRM();toast('Retention rules saved','Customer alerts recalculated');}
+function reportDataset(module){if(module==='leads')return DB.pipeline.leads.filter(canViewCrmRecord).map(x=>({id:x.id,client:x.cust,project:x.proj,category:x.cat,owner:x.person,status:x.col,value:x.val,probability:x.prob,health:crmDealHealth(x).level,score:crmLeadScore(x).score}));if(module==='quotations')return savedQuotations.filter(canViewCrmRecord).map(x=>({number:x.number,client:x.customer,date:x.date,status:x.status,lines:x.lines,total:x.total,validUntil:quotationValidUntil(x),createdBy:x.createdBy||x.representative?.name}));if(module==='clients')return allClients().map(x=>{const m=clientMetrics(x.name),r=retentionState(x.name),cr=creditRisk(x.name);return{client:x.name,industry:x.cat,openLeads:m.open,pipeline:m.openValue,quotations:m.quotes,retention:r.level,inactiveDays:r.days,creditRisk:cr.level,outstanding:clientFinance(x.name).outstanding};});if(module==='visits')return enterpriseCRM.siteVisits.filter(canViewCrmRecord).map(x=>({id:x.id,client:x.customer,site:x.site,date:x.date,owner:x.owner,purpose:x.purpose,status:x.status,outcome:x.report?.outcome||''}));return followups.filter(canViewCrmRecord).map(x=>({id:x.id,client:x.customer,subject:x.subject,due:x.due,channel:x.channel,assignee:x.assignee,priority:x.priority,status:x.status}));}
+function runSavedReport(report,download=false){let rows=reportDataset(report.module),term=String(report.filterValue||'').toLowerCase();if(report.filterField&&term)rows=rows.filter(x=>String(x[report.filterField]||'').toLowerCase().includes(term));const fields=report.fields?.length?report.fields:Object.keys(rows[0]||{}),data=[fields,...rows.map(x=>fields.map(f=>x[f]??''))];if(download)downloadCSV(data,`${report.name.replace(/[^a-z0-9]+/gi,'-')}-${localDateISO()}.csv`);enterpriseCRM.reportLastRun[report.id]=new Date().toISOString();persistEnterpriseCRM();return{rows,fields};}
+function openReportBuilder(){openModal(`<div class="modal-head"><div class="modal-title">Saved Report Builder</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Report Name</label><input class="input" id="rbName" placeholder="e.g. Weekly At-Risk Pipeline"></div><div class="form-grid"><div class="field"><label>Data Source</label><select class="select" id="rbModule" onchange="syncReportFields()">${['leads','quotations','clients','followups','visits'].map(x=>`<option value="${x}">${titleCaseSafe(x)}</option>`).join('')}</select></div><div class="field"><label>Schedule</label><select class="select" id="rbSchedule"><option value="manual">Manual</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div></div><div class="field"><label>Columns</label><div id="rbFields" class="report-field-grid"></div></div><div class="form-grid"><div class="field"><label>Filter Field</label><select class="select" id="rbFilterField"></select></div><div class="field"><label>Contains Value</label><input class="input" id="rbFilterValue"></div></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveReportDefinition()">${I.check}Save Report</button></div>`);syncReportFields();}
+function syncReportFields(){const module=document.getElementById('rbModule').value,fields=Object.keys(reportDataset(module)[0]||{});document.getElementById('rbFields').innerHTML=fields.map(f=>`<label><input type="checkbox" value="${f}" checked> ${titleCaseSafe(f)}</label>`).join('');document.getElementById('rbFilterField').innerHTML=`<option value="">No filter</option>${fields.map(f=>`<option value="${f}">${titleCaseSafe(f)}</option>`).join('')}`;}
+function saveReportDefinition(){const name=document.getElementById('rbName').value.trim();if(!name)return toast('Report name required','','err');const report={id:`RPT-${Date.now()}`,name,module:document.getElementById('rbModule').value,fields:[...document.querySelectorAll('#rbFields input:checked')].map(x=>x.value),filterField:document.getElementById('rbFilterField').value,filterValue:document.getElementById('rbFilterValue').value.trim(),schedule:document.getElementById('rbSchedule').value,createdBy:DB.user.name,createdAt:new Date().toISOString(),active:true};enterpriseCRM.savedReports.push(report);if(report.schedule!=='manual')enterpriseCRM.reportSchedules.push({id:`SCH-${Date.now()}`,reportId:report.id,frequency:report.schedule,active:true,nextRun:localDateISO()});persistEnterpriseCRM();closeModal();toast('Saved report created',`${name} · ${titleCaseSafe(report.schedule)}`);logAudit('Create','Report Builder',name);VIEWS.workspace(document.getElementById('canvas'));}
+function advanceReportSchedule(date,frequency){const d=new Date(`${date}T12:00:00`);if(frequency==='daily')d.setDate(d.getDate()+1);else if(frequency==='weekly')d.setDate(d.getDate()+7);else d.setMonth(d.getMonth()+1);return localDateISO(d);}
+function processScheduledReports(){const today=localDateISO();let ran=0;enterpriseCRM.reportSchedules.filter(x=>x.active&&x.nextRun<=today).forEach(s=>{const r=enterpriseCRM.savedReports.find(x=>x.id===s.reportId&&x.active);if(r){const result=runSavedReport(r,false);s.lastRun=new Date().toISOString();s.lastRowCount=result.rows.length;s.nextRun=advanceReportSchedule(today,s.frequency);ran++;}});if(ran){persistEnterpriseCRM();logAudit('Run','Scheduled Reports',`${ran} report(s) refreshed`);}return ran;}
+function workspaceVisits(){return enterpriseCRM.siteVisits.filter(canViewCrmRecord).sort((a,b)=>`${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));}
+function workspaceActivities(){return followups.filter(canViewCrmRecord).filter(x=>x.status!=='completed').sort((a,b)=>`${a.due}${a.time}`.localeCompare(`${b.due}${b.time}`));}
+function renderWorkspaceTab(tab='today'){document.querySelectorAll('[data-workspace-tab]').forEach(x=>x.classList.toggle('active',x.dataset.workspaceTab===tab));const host=document.getElementById('workspaceContent');if(!host)return;const today=localDateISO();if(tab==='today'){const activities=workspaceActivities().filter(x=>x.due<=today),visits=workspaceVisits().filter(x=>x.date===today),hot=DB.pipeline.leads.filter(canViewCrmRecord).map(l=>({l,s:crmLeadScore(l)})).filter(x=>x.s.band==='Hot'||crmDealHealth(x.l).level==='At Risk').slice(0,6);host.innerHTML=`<div class="mobile-workspace-grid"><section><h3>My Priority Actions</h3>${activities.map(x=>`<div class="daily-action"><time>${formatAppTime(x.time)}</time><div><b>${esc(x.customer)}</b><small>${esc(x.subject)} · ${esc(x.channel)}</small></div><button class="mini-act" onclick="openFollowupDrawer('${x.id}')">${I.arrowR}</button></div>`).join('')||'<div class="empty"><h4>No overdue actions</h4></div>'}</section><section><h3>Today’s Site Visits</h3>${visits.map(v=>siteVisitCard(v)).join('')||'<div class="empty"><h4>No visits today</h4><button class="btn btn-sm btn-primary" onclick="openSiteVisitModal()">Plan Visit</button></div>'}</section><section><h3>Deals Requiring Attention</h3>${hot.map(x=>`<button class="workspace-deal" onclick="openLeadDrawer('${x.l.id}')"><span class="crm-score ${x.s.band.toLowerCase()}">${x.s.score}</span><div><b>${esc(x.l.cust)}</b><small>${esc(x.s.next)} · ${maskFinancial(x.l.val)}</small></div>${I.arrowR}</button>`).join('')}</section></div>`;}
+if(tab==='visits'){const visits=workspaceVisits();host.innerHTML=`<div class="workspace-head"><div><h3>Site-Visit Planning & Reports</h3><p>Plan, check in, record observations and automate the next action.</p></div><button class="btn btn-primary" onclick="openSiteVisitModal()">${I.plus}Plan Site Visit</button></div><div class="site-visit-board">${visits.map(v=>siteVisitCard(v,true)).join('')||'<div class="empty"><h4>No visits planned</h4></div>'}</div>`;}
+if(tab==='commercial'){const pricing=pricingIntelligenceRows();host.innerHTML=`<div class="grid dash-grid"><div class="col-7"><div class="card card-pad"><div class="card-head"><h3>Competitor Intelligence</h3>${enterprisePermission('pricing')?`<button class="btn btn-sm btn-primary" onclick="openCompetitorModal()">${I.plus}Add</button>`:''}</div>${enterpriseCRM.competitors.map(c=>`<div class="competitor-row"><div><b>${esc(c.name)}</b><small>${esc(c.strength)} · ${esc(c.weakness)}</small></div><span class="price-index ${c.priceIndex<100?'low':c.priceIndex>100?'high':''}">${c.priceIndex}</span>${enterprisePermission('pricing')?`<button class="mini-act" onclick="openCompetitorModal('${c.id}')">${I.edit}</button>`:''}</div>`).join('')}</div></div><div class="col-5"><div class="card card-pad"><div class="card-head"><h3>Pricing Intelligence</h3><span class="card-sub">PTH SOR baseline</span></div>${enterprisePermission('pricing')?pricing.map(x=>`<div class="kv"><span class="v"><b>${esc(x.category)}</b><small style="display:block">${x.lines} quoted lines · ${x.variance}% variance</small></span><span class="v">${inr(x.avgQuote)}</span></div>`).join(''):'<div class="restricted-panel">Pricing intelligence is restricted for your role.</div>'}</div></div></div>`;}
+if(tab==='quality'){const issues=dataQualityIssues(),ret=allClients().map(c=>({name:c.name,...retentionState(c.name)})).sort((a,b)=>b.days-a.days);host.innerHTML=`<div class="grid dash-grid"><div class="col-7"><div class="card card-pad"><div class="card-head"><h3>Data-Quality Dashboard</h3><span class="badge ${issues.some(x=>x.severity==='high')?'badge-expired':'badge-valid'}">${issues.length} issues</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Severity</th><th>Module</th><th>Record</th><th>Issue</th></tr></thead><tbody>${issues.map(x=>`<tr><td><span class="prio prio-${x.severity==='high'?'high':x.severity==='medium'?'med':'low'}">${x.severity}</span></td><td>${x.module}</td><td>${esc(x.record)}</td><td>${esc(x.issue)}</td></tr>`).join('')||'<tr><td colspan="4">No quality issues detected.</td></tr>'}</tbody></table></div></div></div><div class="col-5"><div class="card card-pad"><div class="card-head"><h3>Retention & Dormancy Alerts</h3></div>${ret.slice(0,12).map(x=>`<button class="retention-row" onclick="openClientDrawer(${esc(JSON.stringify(x.name))})"><i style="background:${x.color}"></i><div><b>${esc(x.name)}</b><small>${x.level} · ${x.days} days · ${x.action}</small></div>${I.arrowR}</button>`).join('')}</div></div></div>`;}
 if(tab==='reports'){host.innerHTML=`<div class="workspace-head"><div><h3>Saved Reports & Schedules</h3><p>Reusable datasets with filtered columns and recurring schedules.</p></div><button class="btn btn-primary" onclick="openReportBuilder()">${I.plus}Build Report</button></div><div class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Report</th><th>Source</th><th>Columns</th><th>Schedule</th><th>Last Run</th><th></th></tr></thead><tbody>${enterpriseCRM.savedReports.map(r=>`<tr><td><b>${esc(r.name)}</b><div class="page-desc">${esc(r.filterField?`${r.filterField} contains ${r.filterValue}`:'No filter')}</div></td><td>${titleCaseSafe(r.module)}</td><td>${r.fields.length}</td><td>${titleCaseSafe(r.schedule)}</td><td>${enterpriseCRM.reportLastRun[r.id]?formatAppDateTime(enterpriseCRM.reportLastRun[r.id]):'Never'}</td><td><button class="btn btn-sm btn-primary" onclick="runSavedReport(enterpriseCRM.savedReports.find(x=>x.id==='${r.id}'),true);renderWorkspaceTab('reports')">Run & Export</button></td></tr>`).join('')||'<tr><td colspan="6"><div class="empty"><h4>No saved reports</h4></div></td></tr>'}</tbody></table></div></div>`;}
 if(tab==='approvals') renderManagementApprovalInbox(host); }
 function renderManagementApprovalInbox(host){const approvals=[...enterpriseCRM.managementApprovals,...crmIntel.approvals.map(x=>({...x,type:'Quotation',record:x.quotation,title:`Commercial approval · ${x.customer}`,amount:x.value}))].filter(x=>x.status==='pending');let rows='';for(const a of approvals){const quotation=a.type==='Quotation',approve=quotation?`crmDecideApproval('${a.id}','approved')`:`decideManagementApproval('${a.id}','approved')`,reject=quotation?`crmDecideApproval('${a.id}','rejected')`:`decideManagementApproval('${a.id}','rejected')`,notesId=quotation?`approvalNotes-${a.id}`:`mapNotes-${a.id}`,actions=enterprisePermission('approve')?`<textarea class="input" id="${notesId}" placeholder="Decision notes"></textarea><div><button class="btn btn-sm btn-ghost" onclick="${reject}">Reject</button><button class="btn btn-sm btn-primary" onclick="${approve}">Approve</button></div>`:'<div class="restricted-panel">View only — management approval permission required.</div>';rows+=`<div class="card card-pad management-approval"><div><span class="badge badge-review">${esc(a.type)}</span><h3>${esc(a.title||a.record)}</h3><p>${(a.reasons||[]).map(esc).join(' · ')}</p><small>${esc(a.requestedBy)} · ${formatAppDateTime(a.requestedAt)}</small></div><strong>${enterprisePermission('financial')?inr(a.amount||0):'Restricted'}</strong>${actions}</div>`;}host.innerHTML=`<div class="workspace-head"><div><h3>Management Approval Inbox</h3><p>Commercial, credit-risk and management exceptions in one queue.</p></div><span class="badge badge-expiring">${approvals.length} pending</span></div>${rows||'<div class="empty"><h4>No approvals waiting</h4></div>'}`;}
@@ -650,7 +960,146 @@ function openWonModal(id) {
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-lime" onclick="confirmWon('${id}')">${I.check}Confirm Won</button></div>`);
 }
 function confirmWon(id) {
-  const lead = DB.pipeline.leads.find(l => l.id === id); if (!lead) retuon followupDateTimeLabel(f) { return `${formatFollowupDate(f.due)}${f.time ? ` · ${formatAppTime(f.time)}` : ''}`; }
+  const lead = DB.pipeline.leads.find(l => l.id === id); if (!lead) return;
+  const po = document.getElementById('wonPo').value.trim();
+  if (!po) { toast('PO number required', 'Enter the purchase order number to confirm.', 'err'); return; }
+  lead.col = 'won'; lead.prob = 100; lead.updatedAt=new Date().toISOString(); delete lead.lostReason;
+  lead.po = { number: po, value: Math.max(0, +document.getElementById('wonValue').value || lead.val), wonAt: nowStamp() };
+  persistPipeline(); closeModal();
+  toast('Order won', `${lead.cust} · PO ${po}`); logAudit('Status Change', 'CRM Pipeline', `${lead.cust} WON — PO ${po}`);
+  VIEWS.pipeline(document.getElementById('canvas'));
+}
+function openLostModal(id) {
+  const lead = DB.pipeline.leads.find(l => l.id === id); if (!lead) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Mark as Lost</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="kv"><span class="k">Client</span><span class="v">${esc(lead.cust)}</span></div>
+      <div class="field" style="margin-top:12px"><label>Reason for loss <span class="req">*</span></label><select class="select" id="lostReason">${['Price too high','Competitor selected','Project cancelled','No accreditation match','Delayed response','Budget not approved','Other'].map(r => `<option>${r}</option>`).join('')}</select></div>
+      <div class="form-grid"><div class="field"><label>Competitor / awarded party</label><input class="input" id="lostCompetitor" placeholder="If known"></div><div class="field"><label>Revisit Date</label><input class="input" id="lostRevisit" type="date"></div></div>
+      <div class="field"><label>Notes</label><textarea class="input" id="lostNotes" style="min-height:70px;resize:vertical" placeholder="Optional detail for the activity trail"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmLost('${id}')">Confirm Lost</button></div>`);
+}
+function confirmLost(id) {
+  const lead = DB.pipeline.leads.find(l => l.id === id); if (!lead) return;
+  lead.col = 'lost'; lead.prob = 0; lead.updatedAt=new Date().toISOString(); delete lead.po;
+  lead.lostReason = { reason: document.getElementById('lostReason').value, competitor:document.getElementById('lostCompetitor').value.trim(), revisit:document.getElementById('lostRevisit').value, notes: document.getElementById('lostNotes').value.trim(), value:+lead.val||0, lostAt: nowStamp() };
+  persistPipeline(); closeModal();
+  if(lead.lostReason.revisit)crmEnsureFollowup({leadId:lead.id,customer:lead.cust,subject:'Revisit lost opportunity',due:lead.lostReason.revisit,assignee:lead.person,priority:'low'});
+  toast('Lead marked lost', `${lead.cust} · ${lead.lostReason.reason}`, 'info'); logAudit('Status Change', 'CRM Pipeline', `${lead.cust} LOST — ${lead.lostReason.reason}`);
+  VIEWS.pipeline(document.getElementById('canvas'));
+}
+// Add / edit a lead.
+function openLeadModal(id) {
+  const l = id ? DB.pipeline.leads.find(x => x.id === id) : null, editing = !!l;
+  const cols = DB.pipeline.columns.filter(x => x.id !== 'won' && x.id !== 'lost');
+  const cats = ['Material Testing','Geotechnical','NDT','Calibration','Inspection','Other'];
+  const rec = l || { cust:'', proj:'', cat:'Material Testing', val:0, prob:STAGE_PROB.new, person:(DB.staff[0]?.name||DB.user.name), prio:'med', col:'new', follow:'' };
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Lead' : 'New Lead'}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="field" id="ld-cust"><label>Client <span class="req">*</span></label><input class="input" id="ldCust" value="${esc(rec.cust)}" placeholder="Enter client name"><div class="field-err">${I.info}Client is required</div></div>
+      <div class="field"><label>Project</label><input class="input" id="ldProj" value="${esc(rec.proj)}" placeholder="e.g. Port Expansion — Phase 2"></div>
+      <div class="form-grid">
+        <div class="field"><label>Service Category</label><select class="select" id="ldCat">${cats.map(x => `<option ${rec.cat === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+        <div class="field"><label>Expected Value (₹)</label><input class="input tnum" id="ldVal" type="number" min="0" value="${rec.val || 0}"></div>
+      </div>
+      ${customFieldsForm('lead',rec)}
+      <div class="form-grid">
+        <div class="field"><label>Stage</label><select class="select" id="ldCol" onchange="document.getElementById('ldProb').value=({${Object.entries(STAGE_PROB).map(([k,v])=>`'${k}':${v}`).join(',')}})[this.value]">${cols.map(x => `<option value="${x.id}" ${rec.col === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Probability (%)</label><input class="input tnum" id="ldProb" type="number" min="0" max="100" value="${rec.prob ?? STAGE_PROB.new}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Assigned To</label><select class="select" id="ldPerson">${[...new Set([...DB.staff.map(s=>s.name), DB.user.name])].map(n => `<option ${rec.person === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>${!editing?`<label style="display:flex;gap:7px;align-items:center;margin-top:7px;font-size:11.5px"><input type="checkbox" id="ldAutoAssign" checked> Auto-assign by category and workload</label>`:''}</div>
+        <div class="field"><label>Priority</label><select class="select" id="ldPrio"><option value="high" ${rec.prio==='high'?'selected':''}>High</option><option value="med" ${rec.prio==='med'?'selected':''}>Medium</option><option value="low" ${rec.prio==='low'?'selected':''}>Low</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveLead('${editing ? id : ''}')">${I.check}${editing ? 'Save Changes' : 'Create Lead'}</button></div>`);
+}
+function saveLead(id) {
+  const cust = document.getElementById('ldCust').value.trim();
+  if (!cust) { const f = document.getElementById('ld-cust'); f.classList.add('show-err'); const i = f.querySelector('.input'); i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 350); return; }
+  const category=document.getElementById('ldCat').value;
+  const prior=id?DB.pipeline.leads.find(x=>x.id===id):null;
+  const data = { cust, proj: document.getElementById('ldProj').value.trim() || 'New enquiry', cat: category, val: Math.max(0, +document.getElementById('ldVal').value || 0), col: document.getElementById('ldCol').value, prob: Math.min(100, Math.max(0, +document.getElementById('ldProb').value || 0)), person: (!id&&document.getElementById('ldAutoAssign')?.checked)?crmRecommendOwner(category):document.getElementById('ldPerson').value, prio: document.getElementById('ldPrio').value, customFields:{...(prior?.customFields||{}),lead:collectCustomFields('lead')} };
+  if (!id) { const duplicates=crmDuplicateLeads(cust,data.proj); if(duplicates.length){crmPendingLeadData=data;openModal(`<div class="modal-head"><div class="modal-title">Possible Duplicate Enquiry</div><button class="icon-btn drawer-close" onclick="crmPendingLeadData=null;closeModal()">${I.x}</button></div><div class="modal-body"><p>The following existing record${duplicates.length===1?'':'s'} may represent the same customer or project. Review before creating another enquiry.</p>${duplicates.map(x=>`<div class="kv"><span class="v"><b>${esc(x.id)} · ${esc(x.cust)}</b><small style="display:block;color:var(--text-muted)">${esc(x.proj)} · ${esc(DB.pipeline.columns.find(c=>c.id===x.col)?.name||x.col)}</small></span><button class="btn btn-sm btn-ghost" onclick="crmPendingLeadData=null;closeModal();openLeadDrawer('${x.id}')">Open</button></div>`).join('')}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="crmPendingLeadData=null;closeModal()">Cancel</button><button class="btn btn-primary" onclick="crmConfirmDuplicateLead()">Create Separate Enquiry</button></div>`);return;} }
+  let savedLead;
+  if (id) { const l = DB.pipeline.leads.find(x => x.id === id); Object.assign(l, data, {updatedAt:new Date().toISOString()}); savedLead=l; logAudit('Edit', 'CRM Pipeline', `${cust} lead updated`); toast('Lead updated', `${cust} · ${data.cat}`); }
+  else { savedLead={ id: nextLeadId(), follow: '—', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), ...data };DB.pipeline.leads.push(savedLead); logAudit('Create', 'CRM Pipeline', `${cust} lead created`); toast('Lead created', `${cust} · ${DB.pipeline.columns.find(x => x.id === data.col)?.name}`); }
+  persistPipeline(); closeModal();
+  if(!id){crmRunAutomation('lead_created',savedLead);enquiryFilter={search:'',category:'all',stage:'all',owner:'all'};}crmRunAutomation('lead_saved',savedLead);
+  if (state.route === 'pipeline') VIEWS.pipeline(document.getElementById('canvas')); else if (state.route === 'enquiries') VIEWS.enquiries(document.getElementById('canvas'));
+}
+function deleteLead(id) {
+  const l = DB.pipeline.leads.find(x => x.id === id); if (!l) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Delete Lead</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete the lead <b>${esc(l.cust)}</b> — ${esc(l.proj)}? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteLead('${id}')">Delete</button></div>`);
+}
+function confirmDeleteLead(id) {
+  const i = DB.pipeline.leads.findIndex(x => x.id === id); if (i < 0) return;
+  const l = DB.pipeline.leads[i]; DB.pipeline.leads.splice(i, 1); persistPipeline(); closeModal(); closeDrawer();
+  toast('Lead deleted', l.cust, 'info'); logAudit('Delete', 'CRM Pipeline', `${l.cust} lead deleted`);
+  if (state.route === 'enquiries') VIEWS.enquiries(document.getElementById('canvas'));
+  else VIEWS.pipeline(document.getElementById('canvas'));
+}
+function openLeadDrawer(id) {
+  const l = DB.pipeline.leads.find(x => x.id === id); if (!l) return;
+  const intelligence=crmLeadScore(l),health=crmDealHealth(l);
+  const stage = DB.pipeline.columns.find(x => x.id === l.col);
+  const leadFollowups = followups.filter(f => f.leadId === l.id);
+  const quotes = (savedQuotations || []).filter(q => String(q.customer).toLowerCase() === String(l.cust).toLowerCase());
+  openDrawer(`
+    <div class="drawer-head"><button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
+      <div style="font-size:12px;color:var(--text-muted)">${esc(l.id)} · ${esc(l.cat)}</div>
+      <div style="font-size:19px;font-weight:600;margin:3px 0 4px">${esc(l.cust)}</div>
+      <div class="page-desc">${esc(l.proj)}</div>
+      <div style="margin-top:10px">${statusBadge(l.col === 'won' ? 'won' : l.col === 'lost' ? 'lost' : l.col === 'sent' ? 'submitted' : 'review')} <span class="badge badge-neutral" style="margin-left:6px"><span class="dot" style="background:${stage?.color || 'var(--text-muted)'}"></span>${esc(stage?.name || l.col)}</span></div></div>
+    <div class="drawer-tabs"><button class="drawer-tab active" data-tab="ov">Overview</button><button class="drawer-tab" data-tab="in">Intelligence</button><button class="drawer-tab" data-tab="fu">Follow-ups (${leadFollowups.length})</button><button class="drawer-tab" data-tab="ac">Activity</button></div>
+    <div class="drawer-body">
+      <div class="drawer-pane" id="pane-ov">
+        <div class="kv"><span class="k">Expected Value</span><span class="v">${inr(l.val)}</span></div>
+        <div class="kv"><span class="k">Probability</span><span class="v">${l.prob}%</span></div>
+        <div class="kv"><span class="k">Weighted</span><span class="v">${inr(l.val * (l.prob || 0) / 100)}</span></div>
+        <div class="kv"><span class="k">Assigned To</span><span class="v">${esc(l.person)}</span></div>
+        <div class="kv"><span class="k">Priority</span><span class="v"><span class="prio prio-${l.prio === 'high' ? 'high' : l.prio === 'med' ? 'med' : 'low'}">${esc(l.prio)}</span></span></div>
+        ${l.po ? `<div class="kv"><span class="k">Purchase Order</span><span class="v">${esc(l.po.number)} · ${inr(l.po.value)}</span></div>` : ''}
+        ${l.lostReason ? `<div class="kv"><span class="k">Lost Reason</span><span class="v">${esc(l.lostReason.reason)}</span></div>${l.lostReason.notes ? `<div style="margin-top:8px;padding:10px;border-radius:10px;background:var(--surface-soft);border:1px solid var(--border);font-size:13px">${esc(l.lostReason.notes)}</div>` : ''}` : ''}
+        <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-primary" style="flex:1;justify-content:center" onclick="closeDrawer();newFollowupForLead('${esc(l.id)}')">${I.clock}Schedule Follow-up</button><button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="closeDrawer();prepareQuotationForLead('${esc(l.id)}')">${I.quote}Prepare Quotation</button></div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="openLeadModal('${esc(l.id)}')">${I.edit}Edit Lead</button><button class="btn btn-ghost" style="flex:1;justify-content:center;color:var(--danger)" onclick="deleteLead('${esc(l.id)}')">${I.x}Delete</button></div>
+      </div>
+      <div class="drawer-pane" id="pane-in" style="display:none"><div class="crm-intel-hero"><span class="crm-score ${intelligence.band.toLowerCase()}">${intelligence.score}</span><div><b>${intelligence.band} opportunity</b><small style="display:block;color:${health.color}">${health.level} · ${health.age} days since activity</small></div></div><div class="kv"><span class="k">Next best action</span><span class="v">${esc(intelligence.next)}</span></div><div class="kv"><span class="k">Recommended owner</span><span class="v">${esc(crmRecommendOwner(l.cat))}</span></div><div class="kv"><span class="k">Weighted forecast</span><span class="v">${inr(l.val*(l.prob||0)/100)}</span></div><div style="margin-top:12px"><b>Score factors</b>${intelligence.reasons.map(x=>`<div class="page-desc" style="margin-top:6px">${I.check} ${esc(x)}</div>`).join('')||'<div class="page-desc">Insufficient engagement data.</div>'}</div><button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px" onclick="closeDrawer();openCadenceModal('${l.id}')">${I.clock}Start Sales Cadence</button></div>
+      <div class="drawer-pane" id="pane-fu" style="display:none"><button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:14px" onclick="closeDrawer();newFollowupForLead('${esc(l.id)}')">${I.plus}New Follow-up</button>${followupHistoryHTML(leadFollowups)}</div>
+      <div class="drawer-pane" id="pane-ac" style="display:none">${leadActivityHTML(l, leadFollowups, quotes)}</div>
+    </div>`);
+}
+// Real activity trail for a lead — derived from its stage, follow-ups and linked quotations.
+function leadActivityHTML(l, leadFollowups, quotes) {
+  const events = [];
+  if (l.po) events.push({ t: `Order won — PO ${l.po.number}`, m: inr(l.po.value), when: l.po.wonAt });
+  if (l.lostReason) events.push({ t: `Marked lost — ${l.lostReason.reason}`, m: l.lostReason.notes || '', when: l.lostReason.lostAt });
+  quotes.forEach(q => events.push({ t: `Quotation ${q.number}`, m: `₹${Number(q.total || 0).toLocaleString('en-IN')} · ${q.status}`, when: q.date }));
+  leadFollowups.forEach(f => events.push({ t: `${f.status === 'completed' ? 'Follow-up completed' : 'Follow-up scheduled'} — ${f.subject}`, m: `${f.channel} · ${followupDateTimeLabel(f)}${f.outcome ? ` · ${f.outcome}` : ''}`, when: f.completedAt || f.due }));
+  events.sort((a, b) => String(b.when || '').localeCompare(String(a.when || '')));
+  if (!events.length) return `<div class="empty" style="padding:28px"><div class="empty-ico">${I.clock}</div><h4>No activity yet</h4><p>Schedule a follow-up or prepare a quotation.</p></div>`;
+  return `<div class="timeline">${events.map((e, i) => `<div class="tl-item"><div class="tl-rail"><span class="tl-dot" style="background:var(--primary-dark)"></span>${i < events.length - 1 ? '<span class="tl-line"></span>' : ''}</div><div class="tl-body"><div class="tl-title" style="font-size:12.5px">${esc(e.t)}</div><div class="tl-meta">${esc(e.m || '')}${e.when ? ` · ${esc(formatFollowupDate(String(e.when).slice(0,10)))}` : ''}</div></div></div>`).join('')}</div>`;
+}
+function prepareQuotationForLead(id) {
+  const l = DB.pipeline.leads.find(x => x.id === id);
+  startNewQuotation(l ? l.cust : '');
+}
+
+/* ---------- FOLLOW-UP MANAGEMENT ---------- */
+const FOLLOWUP_KEY = 'pth_followups_v1';
+let followupFilter = { search: '', status: 'open', priority: 'all', assignee: 'all' };
+let followupReturnRoute = 'followups';
+let followups = (() => {
+  try { const saved = JSON.parse(localStorage.getItem(FOLLOWUP_KEY)); if (Array.isArray(saved)) return saved; } catch (e) {}
+  return [];
+})();
+function persistFollowups() { localStorage.setItem(FOLLOWUP_KEY, JSON.stringify(followups)); updateFollowupBadge(); }
+function localDateISO(date = new Date()) { const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); }
+function nextFollowupId() { return `FU-${String(Math.max(0, ...followups.map(f => +String(f.id).replace(/\D/g, '') || 0)) + 1).padStart(4, '0')}`; }
+function openFollowups() { return followups.filter(f => f.status !== 'completed'); }
+function followupDueCount() { const today = localDateISO(); return openFollowups().filter(f => f.due <= today).length; }
+function followupDateTimeLabel(f) { return `${formatFollowupDate(f.due)}${f.time ? ` · ${formatAppTime(f.time)}` : ''}`; }
 function customerContact(name) {
   const c = (DB.customers || []).find(x => String(x.name).toLowerCase() === String(name || '').toLowerCase());
   return { phone: c?.phone || '', email: c?.email || '' };
@@ -763,7 +1212,47 @@ function fillFollowupContact(name) {
   if (phone && !phone.value && c.phone) phone.value = c.phone;
   if (email && !email.value && c.email) email.value = c.email;
 }
-function syncFollowupCustomer(leadId) { const lead = DB.pipeline.leads.find(l => l.id === leadId)n-ghost" style="flex:1;justify-content:center" onclick="openFollowupModal('${f.id}',true)">${I.cal}Reschedule</button></div>
+function syncFollowupCustomer(leadId) { const lead = DB.pipeline.leads.find(l => l.id === leadId); if (lead) { const quotation=document.getElementById('fuQuotation'); if(quotation) quotation.value=''; document.getElementById('fuCustomer').value = lead.cust; fillFollowupContact(lead.cust); } }
+function syncFollowupQuotation(number) { const quote=savedQuotations.find(q=>q.number===number); if(quote){const lead=document.getElementById('fuLead'); if(lead) lead.value=''; document.getElementById('fuCustomer').value=quote.customer; fillFollowupContact(quote.customer);} }
+function saveFollowup(id = '') {
+  const customer = document.getElementById('fuCustomer').value.trim(), subject = document.getElementById('fuSubject').value.trim(), due = document.getElementById('fuDue').value;
+  if (!customer || !subject || !due) { toast('Required details missing', 'Client, subject and due date are required.', 'err'); return; }
+  const record = { id:id || nextFollowupId(), leadId:document.getElementById('fuLead').value, quoteNumber:document.getElementById('fuQuotation').value, customer, phone:document.getElementById('fuPhone').value.trim(), email:document.getElementById('fuEmail').value.trim(), subject, due, time:document.getElementById('fuTime').value, channel:document.getElementById('fuChannel').value, assignee:document.getElementById('fuAssignee').value, priority:document.getElementById('fuPriority').value, notes:document.getElementById('fuNotes').value.trim(), status:'pending', updatedAt:new Date().toISOString() };
+  const index = followups.findIndex(f => f.id === id); if (index >= 0) record.status = followups[index].status;
+  if (index >= 0) followups[index] = { ...followups[index], ...record }; else followups.push(record);
+  persistFollowups(); if(index<0)followupFilter={search:'',status:'open',priority:'all',assignee:'all'}; closeModal(); toast(index >= 0 ? 'Follow-up updated' : 'Follow-up created', `${customer} · ${formatFollowupDate(due)}`); logAudit(index >= 0 ? 'Update' : 'Create', 'Follow-ups', `${record.id} · ${customer} · ${subject}`); (VIEWS[followupReturnRoute]||VIEWS.followups)(document.getElementById('canvas'));
+}
+// Detail drawer — the primary view of a single follow-up with all its actions.
+function openFollowupDrawer(id) {
+  const f = followups.find(x => x.id === id); if (!f) return;
+  const timing = followupTiming(f);
+  const lead = DB.pipeline.leads.find(l => l.id === f.leadId);
+  const related = followups.filter(x => x.id !== f.id && ((f.leadId && x.leadId === f.leadId) || String(x.customer).toLowerCase() === String(f.customer).toLowerCase()));
+  const canContact = (f.channel === 'Email' && f.email) || ((f.channel === 'WhatsApp' || f.channel === 'Call') && f.phone);
+  const contactLabel = f.channel === 'Email' ? `Email ${f.customer}` : f.channel === 'WhatsApp' ? `WhatsApp ${f.customer}` : `Call ${f.phone || f.customer}`;
+  openDrawer(`
+    <div class="drawer-head"><button class="icon-btn drawer-close" onclick="closeDrawer()">${I.x}</button>
+      <div style="font-size:12px;color:var(--text-muted)">${esc(f.id)} · ${esc(f.channel)}</div>
+      <div style="font-size:19px;font-weight:600;margin:3px 0 4px">${esc(f.subject)}</div>
+      <div class="page-desc">${esc(f.customer)}</div>
+      <div style="margin-top:10px">${statusBadge(timing)}</div>
+    </div>
+    <div class="drawer-tabs"><button class="drawer-tab active" data-tab="ov">Details</button><button class="drawer-tab" data-tab="hi">History (${related.length})</button></div>
+    <div class="drawer-body">
+      <div class="drawer-pane" id="pane-ov">
+        <div class="kv"><span class="k">Due</span><span class="v">${followupDateTimeLabel(f)}</span></div>
+        <div class="kv"><span class="k">Assigned To</span><span class="v">${esc(f.assignee)}</span></div>
+        <div class="kv"><span class="k">Priority</span><span class="v"><span class="prio prio-${f.priority==='high'?'high':f.priority==='med'?'med':'low'}">${esc(f.priority)}</span></span></div>
+        <div class="kv"><span class="k">Channel</span><span class="v">${esc(f.channel)}</span></div>
+        ${f.leadId?`<div class="kv"><span class="k">Enquiry</span><span class="v">${esc(f.leadId)}${lead?` · ${esc(lead.proj)}`:''}</span></div>`:''}
+        ${f.quoteNumber?`<div class="kv"><span class="k">Quotation</span><span class="v">${esc(f.quoteNumber)}</span></div>`:''}
+        ${f.phone?`<div class="kv"><span class="k">Phone</span><span class="v">${esc(f.phone)}</span></div>`:''}
+        ${f.email?`<div class="kv"><span class="k">Email</span><span class="v">${esc(f.email)}</span></div>`:''}
+        ${f.notes?`<div style="margin-top:14px"><div class="page-desc" style="margin-bottom:4px">Notes</div><div style="font-size:13px">${esc(f.notes)}</div></div>`:''}
+        ${f.outcome?`<div style="margin-top:14px;padding:11px;border-radius:10px;background:var(--surface-soft);border:1px solid var(--border)"><div class="page-desc" style="margin-bottom:4px">Outcome</div><div style="font-size:13px">${esc(f.outcome)}</div></div>`:''}
+        ${canContact?`<button class="btn btn-lime" style="width:100%;justify-content:center;margin-top:16px" onclick="launchFollowupChannel('${f.id}')">${I.enquiry}${contactLabel}</button>`:''}
+        ${f.status!=='completed'?`
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-primary" style="flex:1;justify-content:center" onclick="openCompleteFollowup('${f.id}')">${I.check}Complete</button><button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="openFollowupModal('${f.id}',true)">${I.cal}Reschedule</button></div>
           <div style="display:flex;gap:8px;margin-top:8px"><span class="page-desc" style="align-self:center">Snooze:</span><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="snoozeFollowup('${f.id}',1)">+1 day</button><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="snoozeFollowup('${f.id}',3)">+3 days</button><button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="snoozeFollowup('${f.id}',7)">+1 week</button></div>`:''}
         <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1;justify-content:center" onclick="openFollowupModal('${f.id}')">${I.edit}Edit</button><button class="btn btn-ghost" style="flex:1;justify-content:center;color:var(--danger)" onclick="deleteFollowup('${f.id}')">${I.x}Delete</button></div>
       </div>
@@ -2105,7 +2594,311 @@ function renderSOR(q) {
   });
   list.innerHTML = html || `<div class="empty"><div class="empty-ico">${I.search}</div><h4>No tests found</h4><p>Try a different search or category</p></div>`;
   const count = document.getElementById('sorCount');
-  if (count) count.textContent = html ? `Showing ${shownTests} test${shownTests === 1 ? '' : 's'} acros!== id);
+  if (count) count.textContent = html ? `Showing ${shownTests} test${shownTests === 1 ? '' : 's'} across ${shownCats} categor${shownCats === 1 ? 'y' : 'ies'}${term || sorCatFilter ? ' (filtered)' : ''}` : '';
+}
+/* ---------- SOR — add to quotation ---------- */
+function sorAddTestToQuote(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  quoteLines.push({ category: cat.name, name: t.name, parameters: [], code: t.code || '', qty: 1, unit: 'Sample', rate: t.rate != null ? t.rate : 0, sorRate:t.rate!=null?t.rate:null, rateText: t.rateText, onReq: t.rate == null, disc: t.rate != null ? quoteDiscountPct : 0 });
+  toast('Added to quotation', `${t.name} · ${sorRateText(t)}`, 'ok');
+}
+function sorAddCategoryToQuote(catId) {
+  const cat = sorCat(catId); if (!cat) return;
+  cat.tests.forEach(t => quoteLines.push({ category: cat.name, name: t.name, parameters: [], code: t.code || '', qty: 1, unit: 'Sample', rate: t.rate != null ? t.rate : 0, sorRate:t.rate!=null?t.rate:null, rateText: t.rateText, onReq: t.rate == null, disc: t.rate != null ? quoteDiscountPct : 0 }));
+  toast('Category added', `${cat.tests.length} tests from ${cat.name} added to quotation`, 'ok');
+  logAudit('Create', 'Quotations', `Added SOR category "${cat.name}" (${cat.tests.length} tests) to quotation`);
+}
+function sorAddComboToQuote(catId, comboIdx) {
+  const cat = sorCat(catId); if (!cat) return; const combo = quoteComboOptions(cat)[comboIdx]; if (!combo) return;
+  quoteLines.push({ category: cat.name, name: `Package — ${combo.label}`, parameters: combo.tests.map(t => t.name), code: combo.code, qty: 1, unit: 'Package', rate: combo.rate, sorRate:combo.rate, rateText: String(combo.rate), onReq: false, disc: quoteDiscountPct });
+  toast('Package added', `${combo.label} · ₹${combo.rate.toLocaleString('en-IN')}`, 'ok');
+}
+/* ---------- SOR — test CRUD ---------- */
+function openSorTestModal(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return;
+  const editing = idx != null && idx >= 0, t = editing ? cat.tests[idx] : { name: '', code: '', qty: '', rate: 0, rateText: '' };
+  const onReq = t.rate == null;
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Test' : 'Add Test'} — ${esc(cat.name)}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="field" id="st-name"><label>Name of Test <span class="req">*</span></label><input class="input" id="stName" value="${esc(t.name)}" placeholder="e.g. Compressive Strength"><div class="field-err">${I.info}Test name is required</div></div>
+      <div class="form-grid"><div class="field"><label>IS Code Reference</label><input class="input" id="stCode" value="${esc(t.code || '')}" placeholder="e.g. IS 516"></div><div class="field"><label>Sample Quantity</label><input class="input" id="stQty" value="${esc(t.qty || '')}" placeholder="e.g. 3 Nos."></div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
+        <span class="toggle ${onReq ? 'on' : ''}" id="stOnReq" onclick="this.classList.toggle('on');const on=this.classList.contains('on');document.getElementById('stRate').disabled=on;document.getElementById('stRate').style.opacity=on?'.5':'1';document.getElementById('st-onreqtext').style.display=on?'block':'none'"></span>
+        <div><div style="font-size:13px;font-weight:600">On request (no fixed rate)</div><div style="font-size:11.5px;color:var(--text-secondary)">Use for tests quoted case-by-case or bundled in a package</div></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Rate excluding GST (₹)</label><input class="input tnum" id="stRate" type="number" min="0" value="${t.rate != null ? t.rate : ''}" ${onReq ? 'disabled style="opacity:.5"' : ''}></div>
+      <div class="field" id="st-onreqtext" style="display:${onReq ? 'block' : 'none'}"><label>On-request label</label><input class="input" id="stRateText" value="${esc(onReq ? (t.rateText || 'On request') : '')}" placeholder="e.g. On request / Included in package"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorTest(${cat.id},${editing ? idx : -1})">${I.check}${editing ? 'Save Changes' : 'Add Test'}</button></div>`);
+}
+function saveSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return;
+  const name = document.getElementById('stName').value.trim();
+  if (!name) { const f = document.getElementById('st-name'); f.classList.add('show-err'); const i = f.querySelector('.input'); i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 350); return; }
+  const onReq = document.getElementById('stOnReq').classList.contains('on');
+  const rate = onReq ? null : Math.max(0, +document.getElementById('stRate').value || 0);
+  const rec = { name, code: document.getElementById('stCode').value.trim(), qty: document.getElementById('stQty').value.trim(), rate, rateText: onReq ? (document.getElementById('stRateText').value.trim() || 'On request') : String(rate) };
+  if (idx >= 0) { cat.tests[idx] = rec; logAudit('Edit', 'Schedule of Rates', `Updated "${name}" in ${cat.name}`); }
+  else { cat.tests.push(rec); logAudit('Create', 'Schedule of Rates', `Added "${name}" to ${cat.name}`); }
+  persistSOR(); closeModal(); toast(idx >= 0 ? 'Test updated' : 'Test added', `${name} · ${onReq ? 'On request' : '₹' + rate.toLocaleString('en-IN')}`); refreshSOR();
+}
+function deleteSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Delete Test</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(t.name)}</b> from ${esc(cat.name)}? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteSorTest(${cat.id},${idx})">Delete</button></div>`);
+}
+function confirmDeleteSorTest(catId, idx) {
+  const cat = sorCat(catId); if (!cat) return; const t = cat.tests[idx]; if (!t) return;
+  cat.tests.splice(idx, 1); persistSOR(); closeModal(); toast('Test deleted', t.name, 'info'); logAudit('Delete', 'Schedule of Rates', `Deleted "${t.name}" from ${cat.name}`); refreshSOR();
+}
+/* ---------- SOR — category CRUD ---------- */
+function openSorCategoryModal(catId) {
+  const editing = catId != null, cat = editing ? sorCat(catId) : null;
+  const nextId = Math.max(0, ...(window.SOR || []).map(c => c.id)) + 1;
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Category' : 'Add Category'}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="form-grid"><div class="field"><label>Category No.</label><input class="input tnum" id="scId" type="number" min="1" value="${editing ? cat.id : nextId}" ${editing ? 'readonly' : ''}></div><div class="field"></div></div>
+      <div class="field" id="sc-name"><label>Category Name <span class="req">*</span></label><input class="input" id="scName" value="${editing ? esc(cat.name) : ''}" placeholder="e.g. CONCRETE & CEMENT TESTING"><div class="field-err">${I.info}Category name is required</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorCategory(${editing ? cat.id : 'null'})">${I.check}${editing ? 'Save Changes' : 'Add Category'}</button></div>`);
+}
+function saveSorCategory(catId) {
+  const name = document.getElementById('scName').value.trim();
+  if (!name) { const f = document.getElementById('sc-name'); f.classList.add('show-err'); const i = f.querySelector('.input'); i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 350); return; }
+  if (catId != null) { const cat = sorCat(catId); if (cat) { cat.name = name; logAudit('Edit', 'Schedule of Rates', `Renamed category to "${name}"`); } }
+  else {
+    const id = Math.max(1, +document.getElementById('scId').value || (Math.max(0, ...(window.SOR || []).map(c => c.id)) + 1));
+    if (sorCat(id)) { toast('Category exists', `Category ${id} already exists.`, 'err'); return; }
+    window.SOR.push({ id, name, combos: [], tests: [] }); window.SOR.sort((a, b) => a.id - b.id);
+    logAudit('Create', 'Schedule of Rates', `Added category "${name}"`);
+  }
+  persistSOR(); closeModal(); toast(catId != null ? 'Category updated' : 'Category added', name); sorCatFilter = ''; refreshSOR();
+}
+function deleteSorCategory(catId) {
+  const cat = sorCat(catId); if (!cat) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Delete Category</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Delete <b>${esc(cat.name)}</b> and its <b>${cat.tests.length} test${cat.tests.length === 1 ? '' : 's'}</b>? This cannot be undone.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteSorCategory(${cat.id})">Delete</button></div>`);
+}
+function confirmDeleteSorCategory(catId) {
+  const i = (window.SOR || []).findIndex(c => c.id === +catId); if (i < 0) return;
+  const cat = window.SOR[i]; window.SOR.splice(i, 1); persistSOR(); closeModal(); toast('Category deleted', cat.name, 'info'); logAudit('Delete', 'Schedule of Rates', `Deleted category "${cat.name}" (${cat.tests.length} tests)`); sorCatFilter = ''; refreshSOR();
+}
+/* ---------- SOR — export & reset ---------- */
+function exportSOR() {
+  const rows = [['Category ID', 'Category', 'Test Name', 'IS Code', 'Sample Qty', 'Rate', 'Rate Text']];
+  (window.SOR || []).forEach(c => (c.tests || []).forEach(t => rows.push([c.id, c.name, t.name, t.code || '', t.qty || '', t.rate == null ? 'On request' : t.rate, t.rateText || ''])));
+  downloadCSV(rows, `PTH-SOR-${window.SOR_META?.financialYear || '2026-27'}.csv`);
+  logAudit('Export', 'Schedule of Rates', `Exported ${rows.length - 1} SOR rows to CSV`);
+}
+function resetSOR() {
+  openModal(`<div class="modal-head"><div class="modal-title">Reset Schedule of Rates</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Restore the approved default SOR (${(window.SOR_DEFAULT || []).reduce((a, c) => a + c.tests.length, 0)} tests). All edits, additions and imports in this browser will be discarded.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmResetSOR()">Reset</button></div>`);
+}
+function confirmResetSOR() {
+  window.SOR = JSON.parse(JSON.stringify(window.SOR_DEFAULT || [])); persistSOR(); closeModal(); sorCatFilter = ''; sorSearchTerm = '';
+  toast('SOR reset', 'Restored to the approved default rates'); logAudit('Reset', 'Schedule of Rates', 'SOR restored to default'); refreshSOR();
+}
+
+/* ---------- ACCREDITATION SCOPE ---------- */
+VIEWS.scope = function (c) {
+  DB.scopes ||= [
+    { name:'Concrete & Cement', standards:'IS 516, IS 4031', status:'valid' }, { name:'Soil & Rock', standards:'IS 2720, IS 13030', status:'valid' },
+    { name:'Bitumen & Aggregates', standards:'IS 1201, IS 2386', status:'valid' }, { name:'Steel & Metals', standards:'IS 1608, IS 1786', status:'expiring' },
+    { name:'Non-Destructive Testing', standards:'ASTM E164, IS 3658', status:'valid' }, { name:'Water & Environmental', standards:'IS 3025, APHA', status:'valid' },
+  ];
+  c.innerHTML = `${pageHead('Accreditation Scope', 'NABL-accredited test parameters and applicable standards.', `<button class="btn btn-ghost" onclick="openPdfBulkImport('scope')">${I.upload}Bulk Import PDFs</button><button class="btn btn-primary">${I.plus}Add Scope</button>`)}
+    <div class="grid dash-grid enter">${DB.scopes.map(s=>`<div class="col-4"><div class="card card-pad hoverlift"><div class="card-head"><div class="appr-ico">${I.scope}</div><div style="margin-left:4px"><div style="font-weight:600">${esc(s.name)}</div></div><div style="margin-left:auto">${statusBadge(s.status)}</div></div><div class="page-desc" style="margin-top:10px">Standards: ${esc(s.standards)}</div><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">Discipline: Civil / Mechanical</div></div></div>`).join('')}</div>`;
+};
+
+/* ---------- CUSTOMER PORTAL ---------- */
+VIEWS.portal = function (c) {
+  c.innerHTML = `${pageHead('Client Portal', 'Client-facing preview: report status, downloads and QR verification.', '')}
+    <div class="grid dash-grid">
+      <div class="col-12"><div class="card card-pad enter"><div class="empty"><div class="empty-ico">${I.portal}</div><h4>No client portal records yet</h4><p>Issued customer certificates and reports will appear here.</p></div></div></div>
+      ${DB.certificates.customer.slice(0,4).map(cu=>`<div class="col-3"><div class="card card-pad hoverlift"><div class="appr-ico">${I.report}</div><div style="font-weight:600;margin-top:10px">${esc(cu.name)}</div><div class="page-desc tnum">${esc(cu.num)}</div><div style="margin-top:10px">${statusBadge(cu.stage==='Issued'?'issued':'review')}</div>${cu.stage==='Issued'?`<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:10px" onclick="toast('Download started','${esc(cu.num)}.pdf','info')">${I.export}Download</button>`:''}</div></div>`).join('')}
+    </div>`;
+};
+
+/* ---------- SETTINGS ---------- */
+VIEWS.settings = function (c) {
+  c.innerHTML = `${pageHead('Settings', 'Branding, roles, permissions and appearance.', '')}
+    <div class="grid dash-grid">
+      <div class="col-3"><div class="card card-pad enter"><div class="settings-nav"><a class="active">Branding</a><a>Quotation Layout</a><a>Roles & Permissions</a><a>Branches</a><a>Notifications</a><a>Security</a><a>Appearance</a></div></div></div>
+      <div class="col-9">
+        <div class="card card-pad enter" style="margin-bottom:16px"><div class="card-head"><h3>Product Branding</h3><div class="card-sub" style="margin-left:auto">Configurable identity</div></div>
+          <div class="form-grid" style="margin-top:12px"><div class="field"><label>Product Name</label><input class="input" id="setName" value="${DB.brand.name}"></div><div class="field"><label>Company</label><input class="input" id="setCompany" value="${DB.brand.company}"></div></div>
+          <div class="field"><label>Logo image URL <span style="color:var(--text-muted);font-weight:400">— e.g. assets/img/logo.png (leave blank to use the built-in mark)</span></label><input class="input" id="setLogo" value="${DB.brand.logoUrl || ''}" placeholder="assets/img/logo.png"></div>
+          <div class="field"><label>Tagline</label><input class="input" id="setTagline" value="${DB.brand.tagline}"></div>
+          <div class="field"><label>Accent Colour <span style="color:var(--text-muted);font-weight:400">— PTH orange or lab lime</span></label><div class="swatch-row">${['#E8791E','#9DDB23','#22C55E','#3F8CFF','#8B5CF6','#F59E0B','#EF4444','#14B8A6'].map((col,i)=>`<div class="swatch ${i===1?'on':''}" style="background:${col}" onclick="setAccent('${col}',this)"></div>`).join('')}</div></div>
+          <button class="btn btn-primary" onclick="applyBranding()">${I.check}Save Branding</button>
+        </div>
+        <div class="card card-pad enter" style="margin-bottom:16px" id="googleMapsSettings"><div class="card-head"><div><h3>Google Maps Satellite Integration</h3><div class="card-sub">Official Maps Embed API for the Surat activity dashboard</div></div><span class="badge ${googleMapsApiKey()?'badge-valid':'badge-expiring'}" style="margin-left:auto"><span class="dot"></span>${googleMapsApiKey()?'Configured':'Key Required'}</span></div><div class="field" style="margin-top:14px"><label>Google Maps Embed API key</label><div style="display:flex;gap:8px"><input class="input" id="googleMapsKey" type="password" value="${esc(googleMapsApiKey())}" placeholder="AIza…" autocomplete="off"><button class="btn btn-primary" onclick="saveGoogleMapsKey()">${I.check}Save Key</button></div><div class="page-desc" style="margin-top:7px">Enable Maps Embed API in Google Cloud and restrict the key to this application’s approved web origins. The key remains in this browser only.</div></div></div>
+        <div class="card card-pad enter" style="margin-bottom:16px" id="quotationLayoutSettings"><div class="card-head"><div><h3>Quotation Layout Designer</h3><div class="card-sub">50 professional templates · editable header, footer, images, colours and typography</div></div><button class="btn btn-primary" style="margin-left:auto" onclick="saveQuotationLayout()">${I.check}Save Layout</button></div>
+          <div class="form-grid" style="margin-top:14px"><div class="field"><label>Quotation header</label><input class="input" id="qlHeader" value="${esc(quotationLayout.header)}" oninput="previewQuotationLayout()"></div><div class="field"><label>Header subtitle</label><input class="input" id="qlSubheader" value="${esc(quotationLayout.subheader)}" oninput="previewQuotationLayout()"></div></div>
+          <div class="field"><label>Footer text</label><textarea class="input" id="qlFooter" style="min-height:70px" oninput="previewQuotationLayout()">${esc(quotationLayout.footer)}</textarea></div>
+          <div class="form-grid"><div class="field"><label>Logo URL</label><input class="input" id="qlLogo" value="${esc(quotationLayout.logoUrl||'')}" oninput="previewQuotationLayout()"></div><div class="field"><label>Font</label><select class="select" id="qlFont" onchange="previewQuotationLayout()">${['Inter','Arial','Georgia','Times New Roman'].map(x=>`<option ${quotationLayout.font===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
+          <div class="form-grid"><div class="field"><label>Upload header image</label><input class="input" type="file" accept="image/*" onchange="uploadQuotationAsset('headerImage',this)"></div><div class="field"><label>Upload footer image</label><input class="input" type="file" accept="image/*" onchange="uploadQuotationAsset('footerImage',this)"></div></div>
+          <div class="form-grid"><div class="field"><label>Accent colour</label><input class="input" id="qlAccent" type="color" value="${quotationLayout.accent}" oninput="previewQuotationLayout()"></div><div class="field"><label>Background tint</label><input class="input" id="qlTint" type="color" value="${quotationLayout.tint}" oninput="previewQuotationLayout()"></div></div>
+          <div class="ql-preview" id="qlPreview"></div>
+          <div class="card-head" style="margin-top:18px"><h3>Professional Template Library</h3><span class="card-sub" style="margin-left:auto">${QUOTE_LAYOUTS.length} templates</span></div>
+          <div class="ql-template-filters">${QUOTE_LAYOUT_CATEGORIES.map(cat=>`<button class="btn btn-ghost btn-sm" onclick="filterQuotationTemplates('${cat}',this)">${cat}</button>`).join('')}<button class="btn btn-ghost btn-sm" onclick="filterQuotationTemplates('',this)">Show All</button></div>
+          <div class="ql-template-grid" id="qlTemplateGrid">${renderQuotationTemplateCards()}</div>
+        </div>
+        <div class="card card-pad enter"><div class="card-head"><h3>Roles & Permissions</h3></div>
+          <div class="tbl-wrap" style="margin-top:12px"><table class="perm-grid"><thead><tr><th>Role</th>${DB.perms.slice(0,7).map(p=>`<th>${p}</th>`).join('')}</tr></thead>
+          <tbody>${DB.roles.slice(0,8).map((role,ri)=>`<tr><td style="font-weight:600">${role}</td>${DB.perms.slice(0,7).map((p,pi)=>{const on=ri===0||pi<(8-ri);return `<td>${on?`<span style="color:var(--primary-dark)">${I.check}</span>`:`<span style="color:var(--text-muted)">–</span>`}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>
+        </div>
+      </div>
+    </div>`;
+  c.querySelectorAll('.settings-nav a').forEach(a => a.onclick = () => { c.querySelectorAll('.settings-nav a').forEach(x => x.classList.remove('active')); a.classList.add('active'); });
+  previewQuotationLayout();
+};
+function setAccent(col, el) { document.querySelectorAll('.swatch').forEach(s => s.classList.remove('on')); el.classList.add('on'); DB.brand.accent=col; document.documentElement.style.setProperty('--primary', col); }
+function applyBranding() {
+  DB.brand.name = document.getElementById('setName').value || DB.brand.name;
+  DB.brand.company = document.getElementById('setCompany').value || DB.brand.company;
+  DB.brand.logoUrl = document.getElementById('setLogo').value.trim();
+  DB.brand.tagline = document.getElementById('setTagline').value.trim();
+  persistBranding();
+  renderShell(); navigate('settings');
+  toast('Branding updated', 'Logo and product identity applied across the app');
+  logAudit('Edit', 'Settings', `Branding updated — product name "${DB.brand.name}"`);
+}
+function saveGoogleMapsKey(){const input=document.getElementById('googleMapsKey'),key=input?.value.trim()||'';if(key&&!/^AIza[\w-]{20,}$/.test(key)){toast('Check API key','Enter a valid Google Maps API key beginning with AIza.','err');return;}if(key)localStorage.setItem(GOOGLE_MAPS_KEY_STORAGE,key);else localStorage.removeItem(GOOGLE_MAPS_KEY_STORAGE);toast(key?'Google Maps configured':'Google Maps key removed',key?'Satellite view is now enabled on Overview.':'Satellite view will remain disabled.');logAudit('Edit','Settings',key?'Google Maps Embed API configured':'Google Maps API key removed');navigate('overview');}
+function renderQuotationTemplateCards(category='') { return QUOTE_LAYOUTS.filter(t=>!category||t.category===category).map(t=>`<button class="ql-template ${quotationLayout.templateId===t.id?'selected':''}" onclick="selectQuotationTemplate('${t.id}')" style="--tpl-accent:${t.accent};--tpl-tint:${t.tint};--tpl-font:${t.font}"><span class="ql-template-band"></span><strong>${esc(t.name)}</strong><small>${t.id} · ${t.style}</small></button>`).join(''); }
+function filterQuotationTemplates(category,button){ document.getElementById('qlTemplateGrid').innerHTML=renderQuotationTemplateCards(category); document.querySelectorAll('.ql-template-filters .btn').forEach(b=>b.classList.remove('btn-primary')); button.classList.add('btn-primary'); }
+function selectQuotationTemplate(id){ const preset=QUOTE_LAYOUTS.find(t=>t.id===id); if(!preset)return; Object.assign(quotationLayout,{templateId:id,accent:preset.accent,tint:preset.tint,font:preset.font,style:preset.style}); document.getElementById('qlAccent').value=preset.accent; document.getElementById('qlTint').value=preset.tint; document.getElementById('qlFont').value=preset.font; document.querySelectorAll('.ql-template').forEach(card=>card.classList.toggle('selected',card.textContent.includes(id))); previewQuotationLayout(); }
+function previewQuotationLayout(){ const header=document.getElementById('qlHeader'),preview=document.getElementById('qlPreview'); if(!header||!preview)return; quotationLayout.header=header.value; quotationLayout.subheader=document.getElementById('qlSubheader').value; quotationLayout.footer=document.getElementById('qlFooter').value; quotationLayout.logoUrl=document.getElementById('qlLogo').value.trim(); quotationLayout.font=document.getElementById('qlFont').value; quotationLayout.accent=document.getElementById('qlAccent').value; quotationLayout.tint=document.getElementById('qlTint').value; preview.innerHTML=`${quotationHeader()}<div class="ql-preview-body"><b>Quotation No. ${esc(nextQuotationNumber())}</b><span>Client Name · Kind Attention · Test Category</span><div class="ql-preview-line"></div><div class="ql-preview-line short"></div></div>${quotationFooter()}`; }
+function uploadQuotationAsset(key,input){ const file=input.files?.[0]; if(!file)return; if(file.size>1500000){toast('Image too large','Use an image below 1.5 MB.','err');input.value='';return;} const reader=new FileReader(); reader.onload=()=>{quotationLayout[key]=reader.result;previewQuotationLayout();toast('Image uploaded','Preview updated. Save the layout to apply it.');}; reader.readAsDataURL(file); }
+function saveQuotationLayout(){ previewQuotationLayout(); localStorage.setItem(QUOTE_LAYOUT_KEY,JSON.stringify(quotationLayout)); toast('Quotation layout saved',`${QUOTE_LAYOUTS.find(t=>t.id===quotationLayout.templateId)?.name||'Custom layout'} applied to quotations`); logAudit('Edit','Settings',`Quotation layout ${quotationLayout.templateId} updated`); }
+
+/* ---------- USER MANAGEMENT (add / edit / delete / enable-disable) ---------- */
+VIEWS.users = function (c) {
+  const total = DB.users.length;
+  const active = DB.users.filter(u => u.status === 'active').length;
+  const disabled = total - active;
+  const roles = new Set(DB.users.map(u => u.role)).size;
+  c.innerHTML = `${pageHead('User Management', 'Add, modify, enable/disable and remove user profiles.', `<button class="btn btn-ghost hide-sm">${I.export}Export</button><button class="btn btn-primary" onclick="openUserModal()">${I.plus}Add User</button>`)}
+    <div class="stat-strip enter">
+      <div class="stat-chip"><div class="sc-val tnum">${total}</div><div class="sc-label">Total users</div></div>
+      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--primary-dark)">${active}</div><div class="sc-label"><span class="dot" style="background:var(--primary-dark)"></span>Active</div></div>
+      <div class="stat-chip"><div class="sc-val tnum" style="color:var(--danger)">${disabled}</div><div class="sc-label"><span class="dot" style="background:var(--danger)"></span>Disabled</div></div>
+      <div class="stat-chip"><div class="sc-val tnum">${roles}</div><div class="sc-label"><span class="dot" style="background:var(--info)"></span>Distinct roles</div></div>
+    </div>
+    <div class="filter-bar enter"><div class="filter-search">${I.search}<input placeholder="Search users..." id="userSearch" oninput="renderUsersTable(this.value)"></div><button class="fdrop">Role ${I.chevD}</button><button class="fdrop">Status ${I.chevD}</button></div>
+    <div class="card enter"><div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>User</th><th>Username</th><th>Email</th><th>Role</th><th>Branch</th><th>Last Login</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table></div></div>`;
+  renderUsersTable('');
+};
+function renderUsersTable(q) {
+  const body = document.getElementById('usersBody'); if (!body) return;
+  q = (q || '').toLowerCase();
+  const rows = DB.users.filter(u => !q || (u.name + u.username + u.email + u.role).toLowerCase().includes(q));
+  body.innerHTML = rows.length ? rows.map(u => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="width:32px;height:32px;font-size:11px;${u.status !== 'active' ? 'filter:grayscale(1);opacity:0.6' : ''}">${u.initials}</div><div><div class="cell-strong">${esc(u.name)}</div><div class="cell-dim" style="font-size:11px">${u.id}</div></div></div></td>
+      <td class="cell-dim tnum">${esc(u.username)}</td>
+      <td class="cell-dim">${esc(u.email)}</td>
+      <td class="cell-dim">${esc(u.role)}</td>
+      <td class="cell-dim">${esc(u.branch || '—')}</td>
+      <td class="cell-dim tnum" style="font-size:12px">${u.lastLogin&&u.lastLogin!=='—'?formatAppDateTime(u.lastLogin):'—'}</td>
+      <td>${u.status === 'active' ? '<span class="badge badge-valid"><span class="dot"></span>Active</span>' : '<span class="badge badge-expired"><span class="dot"></span>Disabled</span>'}</td>
+      <td><div style="display:flex;gap:4px;justify-content:flex-end;align-items:center">
+        <span class="toggle ${u.status === 'active' ? 'on' : ''}" title="${u.status === 'active' ? 'Disable' : 'Enable'}" onclick="toggleUserStatus('${u.id}')"></span>
+        <button class="mini-act" title="Edit" onclick="openUserModal('${u.id}')">${I.edit}</button>
+        <button class="mini-act" title="Delete" onclick="deleteUser('${u.id}')">${I.x}</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="8"><div class="empty" style="padding:30px"><div class="empty-ico">${I.employee}</div><h4>No users found</h4><p>Adjust the search or add a new user</p></div></td></tr>`;
+}
+function openUserModal(id) {
+  const u = id ? DB.users.find(x => x.id === id) : null;
+  const editing = !!u;
+  openModal(`
+    <div class="modal-head"><div class="modal-title">${editing ? 'Edit User' : 'Add User'}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="uId" value="${editing ? u.id : ''}">
+      <div class="form-grid">
+        <div class="field" id="uf-name"><label>Full Name <span class="req">*</span></label><input class="input" id="uName" value="${editing ? esc(u.name) : ''}" placeholder="e.g. Hardik" oninput="uSyncPass()"><div class="field-err">${I.info}Name is required</div></div>
+        <div class="field" id="uf-username"><label>Username <span class="req">*</span></label><input class="input" id="uUsername" value="${editing ? esc(u.username) : ''}" placeholder="e.g. hardik"><div class="field-err">${I.info}Username is required</div></div>
+      </div>
+      <div class="form-grid"><div class="field" id="uf-email"><label>Email <span class="req">*</span></label><input class="input" id="uEmail" value="${editing ? esc(u.email) : ''}" placeholder="name@pramukhtesthouse.com"><div class="field-err">${I.info}Valid email is required</div></div><div class="field"><label>Mobile Number</label><input class="input" id="uPhone" value="${editing ? esc(u.phone||'') : ''}" placeholder="+91-9876543210"></div></div>
+      <div class="form-grid">
+        <div class="field"><label>Role</label><select class="select" id="uRole">${DB.roles.map(r => `<option ${editing && u.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+        <div class="field"><label>Branch</label><select class="select" id="uBranch">${DB.branches.map(b => `<option ${editing && u.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label>Password</label><input class="input" id="uPass" type="password" oninput="this.dataset.touched=1" placeholder="${editing ? 'Leave blank to keep unchanged' : 'Enter a preview password'}"><div style="font-size:11.5px;color:var(--text-muted);margin-top:5px">Preview-only password; production authentication requires a backend.</div></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
+        <span class="toggle ${!editing || u.status === 'active' ? 'on' : ''}" id="uStatus" onclick="this.classList.toggle('on')"></span>
+        <div><div style="font-size:13px;font-weight:600">Account enabled</div><div style="font-size:11.5px;color:var(--text-secondary)">Disabled users cannot sign in</div></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveUser()">${I.check}${editing ? 'Save Changes' : 'Create User'}</button></div>`);
+  if (!editing) uSyncPass();
+}
+function uSyncPass() {
+  const name = document.getElementById('uName').value.trim();
+  const pass = document.getElementById('uPass');
+  const uname = document.getElementById('uUsername');
+  if (name) {
+    if (!pass.dataset.touched) pass.value = DEMO_PASSWORD;
+    if (uname && !uname.value) uname.value = name.toLowerCase().replace(/\s+/g, '');
+  }
+}
+function saveUser() {
+  const id = document.getElementById('uId').value;
+  const name = document.getElementById('uName').value.trim();
+  const username = document.getElementById('uUsername').value.trim();
+  const email = document.getElementById('uEmail').value.trim();
+  const phone = document.getElementById('uPhone').value.trim();
+  const password = document.getElementById('uPass')?.value.trim() || '';
+  let ok = true;
+  const bad = (fid) => { const f = document.getElementById(fid); f.classList.add('show-err'); f.querySelector('.input').classList.add('shake'); setTimeout(() => f.querySelector('.input').classList.remove('shake'), 350); ok = false; };
+  document.getElementById('uf-name').classList.remove('show-err');
+  document.getElementById('uf-username').classList.remove('show-err');
+  document.getElementById('uf-email').classList.remove('show-err');
+  if (!name) bad('uf-name');
+  if (!username) bad('uf-username');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) bad('uf-email');
+  if (!ok) return;
+  const role = document.getElementById('uRole').value;
+  const branch = document.getElementById('uBranch').value;
+  const status = document.getElementById('uStatus').classList.contains('on') ? 'active' : 'disabled';
+  const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  if (id) {
+    const u = DB.users.find(x => x.id === id);
+    Object.assign(u, { name, username, email, phone, role, branch, status, initials });
+    if (password) u.password = password;
+    toast('User updated', `${name} · ${role}`);
+    logAudit('Edit', 'User Management', `User ${name} (${role}) updated`);
+  } else {
+    const num = (Math.max(0, ...DB.users.map(u => +u.id.split('-')[1] || 0)) + 1).toString().padStart(3, '0');
+    DB.users.push({ id: 'U-' + num, name, username, email, phone, role, branch, status, initials, password: password || DEMO_PASSWORD, lastLogin: '—' });
+    toast('User created', `${name} · ${role}`);
+    logAudit('Create', 'User Management', `User ${name} (${role}) created`);
+  }
+  persistUsers();
+  closeModal();
+  renderUsersTable(document.getElementById('userSearch')?.value || '');
+  // refresh stat strip counts
+  VIEWS.users(document.getElementById('canvas'));
+}
+function toggleUserStatus(id) {
+  const u = DB.users.find(x => x.id === id);
+  u.status = u.status === 'active' ? 'disabled' : 'active';
+  persistUsers();
+  renderUsersTable(document.getElementById('userSearch')?.value || '');
+  toast(u.status === 'active' ? 'User enabled' : 'User disabled', `${u.name} can ${u.status === 'active' ? 'now sign in' : 'no longer sign in'}`, u.status === 'active' ? 'ok' : 'info');
+  logAudit(u.status === 'active' ? 'Enable' : 'Disable', 'User Management', `User ${u.name} ${u.status === 'active' ? 'enabled' : 'disabled'}`);
+}
+function deleteUser(id) {
+  const u = DB.users.find(x => x.id === id);
+  openModal(`
+    <div class="modal-head"><div class="modal-title">Delete user?</div></div>
+    <div class="modal-body"><p style="font-size:13.5px;color:var(--text-secondary)">This will permanently remove <b style="color:var(--text-primary)">${esc(u.name)}</b> (${u.role}) and revoke their access. This action cannot be undone.</p></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--danger)" onclick="confirmDeleteUser('${id}')">${I.x}Delete User</button></div>`);
+}
+function confirmDeleteUser(id) {
+  const u = DB.users.find(x => x.id === id);
+  DB.users = DB.users.filter(x => x.id !== id);
   persistUsers();
   closeModal();
   VIEWS.users(document.getElementById('canvas'));
