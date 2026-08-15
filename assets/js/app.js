@@ -146,6 +146,19 @@ const NAV = [
 
 /* ---------- App State ---------- */
 const state = { route: 'overview', collapsed: false, theme: 'light', mobileOpen: false, period: 'Last 30 days' };
+const USER_THEME_KEY = 'pth_user_theme_preferences_v1';
+function themePreferences() { try { return JSON.parse(localStorage.getItem(USER_THEME_KEY) || '{}') || {}; } catch (error) { return {}; } }
+function themeUsername() { return DB.users?.find(u => u.name === DB.user?.name)?.username || 'default'; }
+function applySavedTheme(username = themeUsername()) {
+  const prefs = themePreferences(), theme = prefs[username] || prefs.last || 'light';
+  state.theme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', state.theme);
+  return state.theme;
+}
+function persistUserTheme(username = themeUsername()) {
+  const prefs = themePreferences(); prefs[username] = state.theme; prefs.last = state.theme;
+  localStorage.setItem(USER_THEME_KEY, JSON.stringify(prefs));
+}
 const CRM_ROUTES = new Set(['pipeline', 'intelligence', 'workspace', 'followups', 'enquiries', 'createquotation', 'quotations', 'sor', 'customers', 'tenders']);
 
 function setRouteMotionContext(route) {
@@ -358,6 +371,7 @@ function openGlobalSearchResult(i){const x=globalSearchResults[i];if(!x)return;c
 function toggleTheme() {
   state.theme = state.theme === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', state.theme);
+  persistUserTheme();
   toast(state.theme === 'dark' ? 'Dark theme enabled' : 'Light theme enabled', '', 'info');
   if (VIEWS[state.route]) VIEWS[state.route](document.getElementById('canvas'));
 }
@@ -3274,6 +3288,7 @@ function renderLogin() {
 function loginPickUser() {
   const uname = document.getElementById('loginUser').value;
   const u = DB.users.find(x => x.username === uname);
+  applySavedTheme(uname);
   if (u&&!window.PTHBackend?.enabled) document.getElementById('loginPass').value = u.password || DEMO_PASSWORD;
 }
 async function doLogin() {
@@ -3298,6 +3313,7 @@ async function doLogin() {
     return;
   }
   DB.user = { name: u.name, role: u.role, initials: u.initials };
+  applySavedTheme(u.username);
   await storePasswordInBrowser(u,password);
   saveAppSession(u,remember);
   u.lastLogin = nowStamp();
@@ -3310,6 +3326,7 @@ async function doLogin() {
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
   const restoredUser=restoreAppSession();
+  applySavedTheme(restoredUser?.username || themeUsername());
   if (window.PTHBackend?.enabled && window.PTHBackend.hasSession() && restoredUser) { boot(); return; }
   if (!window.PTHBackend?.enabled && restoredUser) { boot(); return; }
   if (params.get('skip') === '1' && !window.PTHBackend?.enabled) { boot(); return; }
