@@ -2299,8 +2299,8 @@ async function generateQuotationPdfBlob(q){
 
   // ---- table columns (Description flexes to fill the page width) ----
   const cols=hasDiscount
-    ?[{k:'sr',t:'Sr.',w:28,a:'center'},{k:'desc',t:'Description (Category and Service)',w:0,a:'left'},{k:'qty',t:'Qty',w:38,a:'center'},{k:'unit',t:'Unit',w:52,a:'center'},{k:'rate',t:'Rate',w:74,a:'right'},{k:'disc',t:'Discount',w:74,a:'right'},{k:'amt',t:'Amount',w:80,a:'right'}]
-    :[{k:'sr',t:'Sr.',w:30,a:'center'},{k:'desc',t:'Description (Category and Service)',w:0,a:'left'},{k:'qty',t:'Qty',w:44,a:'center'},{k:'unit',t:'Unit',w:62,a:'center'},{k:'rate',t:'Rate',w:86,a:'right'},{k:'amt',t:'Amount',w:92,a:'right'}];
+    ?[{k:'sr',t:'Sr.',w:28,a:'center'},{k:'desc',t:'Test Category / Description',w:0,a:'left'},{k:'qty',t:'Qty',w:38,a:'center'},{k:'unit',t:'Unit',w:52,a:'center'},{k:'rate',t:'Rate',w:74,a:'right'},{k:'disc',t:'Discount',w:74,a:'right'},{k:'amt',t:'Amount',w:80,a:'right'}]
+    :[{k:'sr',t:'Sr.',w:30,a:'center'},{k:'desc',t:'Test Category / Description',w:0,a:'left'},{k:'qty',t:'Qty',w:44,a:'center'},{k:'unit',t:'Unit',w:62,a:'center'},{k:'rate',t:'Rate',w:86,a:'right'},{k:'amt',t:'Amount',w:92,a:'right'}];
   cols.find(c=>c.k==='desc').w=contentW-cols.reduce((s,c)=>s+c.w,0);
   const colX=[];{let x=M;cols.forEach(c=>{colX.push(x);x+=c.w;});}
   const descW=cols.find(c=>c.k==='desc').w;
@@ -2322,10 +2322,11 @@ async function generateQuotationPdfBlob(q){
   items.forEach((item,index)=>{
     const qty=Number(item.qty||1),unit=item.unit||'Sample',dp=discPctOf(item);
     const gross=item.onReq?0:qty*Number(item.rate||0),lineDisc=Math.round(gross*dp/100),amount=gross-lineDisc;
-    const nameLines=wrap(item.name||'Service',descW-12,8.2,bold);
-    const metaBits=[item.category,item.code?('Ref: '+item.code):'',item.parameters?.length?('Parameters: '+item.parameters.join('; ')):''].filter(Boolean).join('   |   ');
+    const categoryLines=wrap(item.category||'Uncategorised',descW-12,8.2,bold);
+    const nameLines=wrap(item.name||'Service',descW-12,8.1,font);
+    const metaBits=[item.code?('Ref: '+item.code):'',item.parameters?.length?('Parameters: '+item.parameters.join('; ')):''].filter(Boolean).join('   |   ');
     const metaLines=metaBits?wrap(metaBits,descW-12,7,font):[];
-    const rowH=Math.max(24,8+nameLines.length*10+(metaLines.length?metaLines.length*8.4+2:0)+4);
+    const rowH=Math.max(32,8+categoryLines.length*10+nameLines.length*10+(metaLines.length?metaLines.length*8.4+2:0)+4);
     if(y-rowH<bottomLimit){startPage();drawTableHeader();}
     const top=y;
     if(index%2===1)page.drawRectangle({x:M,y:top-rowH,width:contentW,height:rowH,color:zebra});
@@ -2333,7 +2334,8 @@ async function generateQuotationPdfBlob(q){
       page.drawRectangle({x:colX[i],y:top-rowH,width:c.w,height:rowH,borderColor:lineColor,borderWidth:.5});
       if(c.k==='desc'){
         let ty=top-13;
-        nameLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:8.2,font:bold,color:ink});ty-=10;});
+        categoryLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:8.2,font:bold,color:ink});ty-=10;});
+        nameLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:8.1,font,color:ink});ty-=10;});
         if(metaLines.length)ty-=2;
         metaLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:7,font,color:soft});ty-=8.4;});
         return;
@@ -2495,7 +2497,7 @@ function renderQuoteLines() {
   const head = document.getElementById('quoteHead');
   if (head) head.innerHTML = `<tr>
     <th style="width:46px">Sr. No.</th>
-    <th>Description (Category and Service)</th>
+    <th>Test Category / Description</th>
     <th class="q-center" style="width:58px">Qty</th>
     <th class="q-center" style="width:84px">Unit</th>
     <th class="q-num" style="width:100px">Rate (₹)</th>
@@ -2511,7 +2513,7 @@ function renderQuoteLines() {
     return `
     <tr>
       <td class="tnum cell-dim">${i+1}</td>
-      <td><div class="quote-description-category">${esc(l.category || 'Uncategorised')}</div><div class="cell-strong">${esc(l.name)}</div>${l.code?`<div class="quote-description-code">Reference: ${esc(l.code)}</div>`:''}${l.parameters?.length?`<div class="quote-params">(${l.parameters.map(esc).join('; ')})</div>`:''}${l.custom?'<div class="quote-custom-tag">Out of SOR</div>':''}</td>
+      <td><div class="quote-description-category">${esc(l.category || 'Uncategorised')}</div><div class="quote-description-name">${esc(l.name)}</div>${l.code?`<div class="quote-description-code">Reference: ${esc(l.code)}</div>`:''}${l.parameters?.length?`<div class="quote-params">(${l.parameters.map(esc).join('; ')})</div>`:''}${l.custom?'<div class="quote-custom-tag">Out of SOR</div>':''}</td>
       <td class="q-center"><input type="number" min="1" value="${l.qty}" onchange="quoteLines[${i}].qty=Math.max(1,+this.value||1);renderQuoteLines()" style="width:48px;${inS};text-align:center" class="tnum"></td>
       <td class="q-center"><input type="text" value="${esc(l.unit || 'Sample')}" onchange="quoteLines[${i}].unit=this.value.trim()||'Sample';renderQuoteLines()" style="width:74px;${inS};text-align:center"></td>
       <td class="q-num"><input type="number" min="0" step="1" value="${l.onReq ? '' : l.rate}" placeholder="On request" onchange="quoteSetLineRate(${i},this.value)" title="Enter a rate, or leave blank for On request" style="width:86px;${inS};text-align:right" class="tnum"></td>
