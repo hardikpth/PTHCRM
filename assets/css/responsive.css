@@ -14,20 +14,22 @@ img, svg, canvas, iframe { max-width: 100%; }
 .client-list-table { min-width: 0; width: 100%; table-layout: fixed; }
 .client-list-table th, .client-list-table td { vertical-align: middle; }
 .client-list-table tbody td { padding-top: 10px; padding-bottom: 10px; }
-.client-list-grouped .cl-company { width: 14%; }
-.client-list-grouped .cl-contact { width: 17%; }
-.client-list-grouped .cl-registration { width: 17%; }
-.client-list-grouped .cl-notes { width: 11%; }
-.client-list-grouped .cl-leads { width: 11%; }
-.client-list-grouped .cl-business { width: 13%; }
-.client-list-grouped .cl-activity { width: 10%; }
-.client-list-grouped .cl-options { width: 7%; }
+.client-list-grouped .cl-company { width: 13%; }
+.client-list-grouped .cl-contact { width: 15%; }
+.client-list-grouped .cl-registration { width: 15%; }
+.client-list-grouped .cl-notes { width: 9%; }
+.client-list-grouped .cl-leads { width: 10%; }
+.client-list-grouped .cl-business { width: 12%; }
+.client-list-grouped .cl-activity { width: 8%; }
+.client-list-grouped .cl-options { width: 18%; }
 .client-list-grouped th { padding-inline: 8px; white-space: normal; line-height: 1.25; }
 .client-list-grouped td { padding-inline: 8px; overflow-wrap: anywhere; }
 .client-list-grouped td > strong, .client-list-grouped td > small, .client-list-grouped td > a { display: block; }
 .client-list-grouped td > small, .client-list-grouped td > a { margin-top: 3px; color: var(--text-muted); font-size: 10.5px; }
 .client-list-grouped .client-actions-cell { min-width: 0; width: auto; }
 .client-list-grouped .client-options-btn { padding-inline: 7px; font-size: 10.5px; }
+.client-quick-actions { display:flex; align-items:center; justify-content:center; gap:2px; white-space:nowrap; }
+.client-quick-actions .mini-act { width:26px; min-width:26px; height:28px; min-height:28px; }
 .client-clamp { display: -webkit-box !important; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .client-metric-line { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; text-align: center; }
 .client-metric-line span { padding: 4px 2px; border-radius: 6px; background: var(--surface-soft); color: var(--text-muted); font-size: 9px; }
@@ -72,6 +74,7 @@ img, svg, canvas, iframe { max-width: 100%; }
   .client-list-grouped td::before { content: attr(data-label); color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
   .client-list-grouped td:last-child { border-bottom: 0; }
   .client-list-grouped .client-options-btn { width: auto; justify-self: start; }
+  .client-quick-actions { justify-content:flex-start; flex-wrap:wrap; }
 }
 @media (max-width: 680px) {
   :root { --topbar-h: 58px; }

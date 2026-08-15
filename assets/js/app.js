@@ -433,21 +433,52 @@ function overviewVisionHTML(){const rows=overviewWonRows(),won=rows.reduce((s,x)
 function overviewTargetsHTML(){const rows=overviewWonRows(),won=rows.reduce((s,x)=>s+x.won,0),monthTarget=+overviewStrategy.monthlyTarget||0,monthPct=monthTarget?Math.round(won/monthTarget*100):0,totalIncentive=rows.reduce((s,x)=>s+x.incentive,0);return `<div class="grid dash-grid overview-target-grid"><div class="col-7"><div class="card card-pad"><div class="card-head"><div><h3>Sales Target Command Centre</h3><div class="card-sub">Person-wise monthly target, achievement and gap</div></div><span class="badge ${monthPct>=100?'badge-valid':'badge-expiring'}">${monthPct}% overall</span></div><div class="target-overall"><div><span>Team achievement</span><b>${inr(won)} <small>of ${inr(monthTarget)}</small></b></div><div class="target-progress"><span style="width:${Math.min(100,monthPct)}%"></span></div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Sales Person</th><th>Target</th><th>Won</th><th>Achievement</th><th>Gap</th></tr></thead><tbody>${rows.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${inr(x.target)}</td><td>${inr(x.won)}</td><td><div class="mini-target"><span style="width:${Math.min(100,x.attainment)}%"></span></div><b class="tnum">${x.attainment}%</b></td><td class="tnum">${inr(Math.max(0,x.target-x.won))}</td></tr>`).join('')||'<tr><td colspan="5">No sales owners configured.</td></tr>'}</tbody></table></div></div></div><div class="col-5"><div class="card card-pad incentive-card"><div class="card-head"><div><h3>Incentive Dashboard</h3><div class="card-sub">Estimated from won value and configured slabs</div></div><b class="incentive-total">${inr(totalIncentive)}</b></div>${rows.map((x,i)=>`<div class="incentive-row"><span class="rank">${i+1}</span><div><b>${esc(x.name)}</b><small>${x.attainment}% target · ${x.rate}% rate</small></div><strong>${inr(x.incentive)}</strong></div>`).join('')}<div class="incentive-note">Estimates are managerial projections. Final payroll approval remains outside CRM.</div></div></div></div>`;}
 function openOverviewStrategyModal(){const people=[...new Set([...DB.pipeline.leads.map(x=>x.person),...Object.keys(overviewStrategy.userTargets||{})].filter(Boolean))];openModal(`<div class="modal-head"><div class="modal-title">Configure Vision, Targets & Incentives</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Vision Heading</label><input class="input" id="ovVisionTitle" value="${esc(overviewStrategy.visionTitle)}"></div><div class="field"><label>Vision Statement</label><textarea class="input" id="ovVisionStatement" style="min-height:70px">${esc(overviewStrategy.visionStatement)}</textarea></div><div class="field"><label>Current Strategic Focus</label><textarea class="input" id="ovVisionFocus" style="min-height:58px">${esc(overviewStrategy.focus)}</textarea></div><div class="form-grid"><div class="field"><label>Monthly Team Target (₹)</label><input class="input tnum" id="ovMonthlyTarget" type="number" min="0" value="${overviewStrategy.monthlyTarget}"></div><div class="field"><label>Financial Year Target (₹)</label><input class="input tnum" id="ovFyTarget" type="number" min="0" value="${overviewStrategy.financialYearTarget}"></div></div><div class="form-grid"><div class="field"><label>Base Incentive (% of won value)</label><input class="input" id="ovIncentiveRate" type="number" min="0" max="100" step="0.1" value="${overviewStrategy.incentiveRate}"></div><div class="field"><label>Accelerator Rate (%)</label><input class="input" id="ovAcceleratorRate" type="number" min="0" max="100" step="0.1" value="${overviewStrategy.acceleratorRate}"></div></div><div class="field"><label>Accelerator starts at target achievement (%)</label><input class="input" id="ovAcceleratorThreshold" type="number" min="0" max="500" value="${overviewStrategy.acceleratorThreshold}"></div><div class="page-desc" style="margin:16px 0 7px">Monthly target by sales person</div>${people.map((name,i)=>`<div class="kv"><span class="v">${esc(name)}</span><input class="input tnum ov-user-target" data-owner="${esc(name)}" type="number" min="0" value="${+(overviewStrategy.userTargets||{})[name]||0}" style="max-width:180px"></div>`).join('')}</div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOverviewStrategy()">${I.check}Save Configuration</button></div>`);}
 function saveOverviewStrategy(){const title=document.getElementById('ovVisionTitle').value.trim(),statement=document.getElementById('ovVisionStatement').value.trim();if(!title||!statement){toast('Vision details required','Enter both the vision heading and statement.','err');return;}const userTargets={};document.querySelectorAll('.ov-user-target').forEach(x=>userTargets[x.dataset.owner]=Math.max(0,+x.value||0));overviewStrategy={...overviewStrategy,visionTitle:title,visionStatement:statement,focus:document.getElementById('ovVisionFocus').value.trim(),monthlyTarget:Math.max(0,+document.getElementById('ovMonthlyTarget').value||0),financialYearTarget:Math.max(0,+document.getElementById('ovFyTarget').value||0),incentiveRate:Math.max(0,+document.getElementById('ovIncentiveRate').value||0),acceleratorRate:Math.max(0,+document.getElementById('ovAcceleratorRate').value||0),acceleratorThreshold:Math.max(0,+document.getElementById('ovAcceleratorThreshold').value||0),userTargets};persistOverviewStrategy();crmIntel.targets.monthly=overviewStrategy.monthlyTarget;persistCrmIntel();closeModal();logAudit('Edit','Overview',`Vision board and sales targets updated by ${DB.user.name}`);toast('Overview strategy saved','Targets and incentives recalculated from live CRM data');VIEWS.overview(document.getElementById('canvas'));}
+function overviewPeriodStart() {
+  const now=new Date(), start=new Date(now);
+  if(state.period==='Last 7 days')start.setDate(now.getDate()-6);
+  else if(state.period==='Last 30 days')start.setDate(now.getDate()-29);
+  else if(state.period==='This quarter')start.setMonth(Math.floor(now.getMonth()/3)*3,1);
+  else start.setFullYear(now.getMonth()>=3?now.getFullYear():now.getFullYear()-1,3,1);
+  start.setHours(0,0,0,0); return start;
+}
+function overviewRecordInPeriod(record, fields) {
+  const raw=fields.map(k=>record?.[k]).find(Boolean); if(!raw)return true;
+  const date=new Date(String(raw).length===10?`${raw}T00:00:00`:raw); return !Number.isNaN(date.getTime())&&date>=overviewPeriodStart();
+}
+function overviewSpark(records, fields, valueFn=()=>1) {
+  const now=new Date(), values=[];
+  for(let offset=11;offset>=0;offset--){const y=now.getFullYear(),m=now.getMonth()-offset,start=new Date(y,m,1),end=new Date(y,m+1,1);values.push(records.reduce((sum,r)=>{const raw=fields.map(k=>r?.[k]).find(Boolean);if(!raw)return sum;const d=new Date(String(raw).length===10?`${raw}T00:00:00`:raw);return d>=start&&d<end?sum+valueFn(r):sum;},0));}
+  return values;
+}
+function overviewLiveKpis() {
+  const leads=(DB.pipeline.leads||[]).filter(x=>overviewRecordInPeriod(x,['createdAt','updatedAt']));
+  const quotes=(savedQuotations||[]).filter(x=>overviewRecordInPeriod(x,['date','updatedAt']));
+  const won=leads.filter(x=>x.col==='won');
+  const outstanding=Object.values(enterpriseCRM.clientFinance||{}).reduce((sum,x)=>sum+(+x.outstanding||0),0);
+  const quoteValue=quotes.reduce((sum,x)=>sum+(+x.total||0),0), conversion=leads.length?Math.round(won.length/leads.length*100):0;
+  return [
+    {id:'enq',label:'New Enquiries',value:leads.length,fmt:'int',dir:'up',delta:0,cmp:`${leads.length} enquiries in ${state.period.toLowerCase()}`,spark:overviewSpark(DB.pipeline.leads||[],['createdAt','updatedAt'])},
+    {id:'quo',label:'Quotation Value',value:quoteValue,fmt:'inr',dir:'up',delta:0,cmp:`${quotes.length} quotations in ${state.period.toLowerCase()}`,spark:overviewSpark(savedQuotations||[],['date','updatedAt'],x=>+x.total||0)},
+    {id:'ord',label:'Orders Received',value:won.length,fmt:'int',dir:'up',delta:0,cmp:`${won.length} won opportunities`,spark:overviewSpark((DB.pipeline.leads||[]).filter(x=>x.col==='won'),['po.wonAt','updatedAt','createdAt'])},
+    {id:'cnv',label:'Conversion Rate',value:conversion,fmt:'pct',dir:'up',delta:0,cmp:`${won.length} won from ${leads.length} enquiries`,spark:overviewSpark(DB.pipeline.leads||[],['createdAt','updatedAt'])},
+    {id:'due',label:'Outstanding Payments',value:outstanding,fmt:'inr',dir:outstanding?'down':'up',delta:0,cmp:`Current outstanding across ${Object.keys(enterpriseCRM.clientFinance||{}).length} financial profiles`,spark:Array(12).fill(outstanding)}
+  ];
+}
 VIEWS.overview = function (c) {
   const actions = `
     <label class="pill-select hide-sm" style="cursor:pointer">${I.cal}<select id="ovPeriod" onchange="setOverviewPeriod(this.value)" style="border:none;background:transparent;font-weight:600;font-family:inherit;font-size:inherit;color:inherit;cursor:pointer;outline:none">${Object.keys(PERIOD_FACTOR).map(p => `<option ${p === state.period ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
     <button class="btn btn-ghost hide-sm" onclick="exportOverview()">${I.export}Export</button>
     <button class="btn btn-primary" onclick="openEnquiryModal()">${I.plus}New Enquiry ${I.arrowR}</button>`;
 
-  const factor = PERIOD_FACTOR[state.period] || 1;
-  const kpiCards = DB.kpis.map((k, i) => {
-    const v = k.id === 'cnv' ? k.value : Math.round(k.value * factor);
+  const liveKpis=overviewLiveKpis();
+  const kpiCards = liveKpis.map((k, i) => {
+    const v = k.value;
     return `
     <div class="card card-pad kpi hoverlift enter enter-${i + 1}" data-kpi="${k.id}" style="cursor:pointer">
       <div class="kpi-top"><span class="kpi-label">${k.label}</span><span class="kpi-ico" title="${k.cmp}">${I.info}</span></div>
       <div class="kpi-val tnum counter" data-base="${k.value}" data-kid="${k.id}" data-target="${v}" data-format="${k.fmt}">0</div>
       <div class="kpi-foot">
-        <span class="delta ${k.dir}">${k.dir === 'up' ? I.up : I.down}${k.delta}%</span>
+        <span class="delta ${k.dir}">${k.delta ? `${k.dir === 'up' ? I.up : I.down}${k.delta}%` : 'LIVE'}</span>
         <span class="kpi-cmp">${k.cmp}</span>
       </div>
       <a class="kpi-link" data-route="${KPI_ROUTE[k.id]}" onclick="event.stopPropagation();navigate('${KPI_ROUTE[k.id]}')">View Details ${I.arrowR}</a>
@@ -655,22 +686,14 @@ function renderSuratActivityMap() {
 
 function setOverviewPeriod(period) {
   state.period = period;
-  const factor = PERIOD_FACTOR[period] || 1;
-  const row = document.getElementById('kpiRow');
-  row.querySelectorAll('.kpi-val').forEach(el => {
-    const base = +el.dataset.base;
-    el.dataset.target = el.dataset.kid === 'cnv' ? base : Math.round(base * factor);
-    el.textContent = '0';
-  });
-  animateCounters(row);
+  VIEWS.overview(document.getElementById('canvas'));
   toast('Period updated', period, 'info');
   logAudit('View', 'Overview', `Dashboard period changed to "${period}"`);
 }
 
 function exportOverview() {
-  const factor = PERIOD_FACTOR[state.period] || 1;
   const rows = [['Metric', 'Value', 'Change %', 'Direction', 'Period'],
-    ...DB.kpis.map(k => [k.label, k.id === 'cnv' ? k.value + '%' : (k.fmt === 'inr' ? inr(k.value * factor) : Math.round(k.value * factor)), k.delta, k.dir, state.period])];
+    ...overviewLiveKpis().map(k => [k.label, k.fmt==='pct'?k.value+'%':k.fmt==='inr'?inr(k.value):k.value, k.delta, k.dir, state.period])];
   downloadCSV(rows, 'PTH-CRM-overview-kpis.csv');
   logAudit('Export', 'Overview', `Exported dashboard KPIs (${state.period})`);
 }
@@ -1905,7 +1928,14 @@ function compactClientListHTML(list) {
         <td data-label="Lead Summary"><div class="client-metric-line"><span>Total <b>${m.leads}</b></span><span>Open <b>${m.open}</b></span><span>Won <b>${m.won}</b></span></div></td>
         <td data-label="Business Summary"><strong>${inr(m.openValue)} pipeline</strong><small>${m.quotes} quotation(s)</small><small>${m.openFus} open / ${m.fus.length} follow-up(s)</small></td>
         <td data-label="Activity & Status"><span class="badge ${st.cls}"><span class="dot"></span>${st.label}</span><small>${la ? formatFollowupDate(la) : 'No activity'}</small></td>
-        <td data-label="Options" class="client-actions-cell" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm client-options-btn" onclick="openClientActions(${nameJson})">Options ${I.chevD}</button></td>
+        <td data-label="Options" class="client-actions-cell" onclick="event.stopPropagation()"><div class="client-quick-actions">
+          <button class="mini-act" onclick="openClientDrawer(${nameJson})" title="View client">${I.eye}</button>
+          <button class="mini-act" onclick="newFollowupForCustomer(${nameJson})" title="Schedule follow-up">${I.clock}</button>
+          <button class="mini-act" onclick="startNewQuotation(${nameJson})" title="Create quotation">${I.plus}</button>
+          <button class="mini-act" onclick="openClientModal(${nameJson})" title="Modify client">${I.edit}</button>
+          <button class="mini-act" onclick="shareClientContact(${nameJson})" title="Send contact details">${I.export}</button>
+          <button class="mini-act danger" onclick="deleteClient(${nameJson})" title="Delete client">${I.x}</button>
+        </div></td>
       </tr>`;
     }).join('')}</tbody></table></div></div>`;
 }
