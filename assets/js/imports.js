@@ -12,7 +12,7 @@ const IMPORT_SPECS = {
   },
   sor: {
     label: 'Schedule of Rates',
-    columns: ['Category ID', 'Category', 'Test Name', 'IS Code', 'Sample Qty', 'Rate', 'Rate Text'],
+    columns: ['Category ID', 'Category', 'Service / Test Name', 'IS Code', 'Sample Qty', 'Rate', 'Rate Text'],
   },
   customers: {
     label: 'Clients',
@@ -126,13 +126,30 @@ function applyDataImport(module, rows) {
       });
     });
   } else if (module === 'sor') {
-    rows.forEach(row => {
-      const id = Math.max(1, Math.round(numberValue(rowValue(row, 'Category ID', 'Category No'))));
-      const categoryName = String(rowValue(row, 'Category')).trim() || `Imported Category ${id}`;
-      let category = window.SOR.find(item => item.id === id);
-      if (!category) { category = { id, name: categoryName, combos: [], tests: [] }; window.SOR.push(category); }
-      const name = String(rowValue(row, 'Test Name', 'Name of Test', 'Test')).trim();
-      if (!name) throw new Error('Every SOR row requires a Test Name.');
+    const importedSOR = JSON.parse(JSON.stringify(window.SOR || []));
+    const usedIds = new Set(importedSOR.map(category => Number(category.id)).filter(Number.isFinite));
+    const nextCategoryId = () => { let id = 1; while (usedIds.has(id)) id += 1; usedIds.add(id); return id; };
+    const categoryByName = name => importedSOR.find(category => keyOf(category.name) === keyOf(name));
+    rows.forEach((row, index) => {
+      const categoryName = String(rowValue(row, 'Category', 'Category Name', 'Test Category', 'Service Category')).trim();
+      if (!categoryName) throw new Error(`Row ${index + 2}: Category is required.`);
+      const idRaw = String(rowValue(row, 'Category ID', 'Category No', 'Category Number')).trim();
+      const requestedId = /^\d+$/.test(idRaw) && Number(idRaw) > 0 ? Number(idRaw) : null;
+      let category = categoryByName(categoryName);
+      if (!category && requestedId) {
+        const sameId = importedSOR.find(item => Number(item.id) === requestedId);
+        if (!sameId) {
+          usedIds.add(requestedId);
+          category = { id: requestedId, name: categoryName, combos: [], tests: [] };
+          importedSOR.push(category);
+        } else if (keyOf(sameId.name) === keyOf(categoryName)) category = sameId;
+      }
+      if (!category) {
+        category = { id: nextCategoryId(), name: categoryName, combos: [], tests: [] };
+        importedSOR.push(category);
+      }
+      const name = String(rowValue(row, 'Service / Test Name', 'Test Name', 'Name of Test', 'Test', 'Service', 'Service Name', 'Test / Service')).trim();
+      if (!name) throw new Error(`Row ${index + 2}: Service / Test Name is required.`);
       const rateRaw = rowValue(row, 'Rate');
       const rate = numberValue(rateRaw);
       const onReq = /request|demand/i.test(String(rateRaw)) || !rate;
@@ -145,7 +162,8 @@ function applyDataImport(module, rows) {
       const existing = category.tests.findIndex(item => keyOf(item.name) === keyOf(name) && keyOf(item.code) === keyOf(test.code));
       if (existing >= 0) category.tests[existing] = test; else category.tests.push(test);
     });
-    window.SOR.sort((a, b) => a.id - b.id);
+    importedSOR.sort((a, b) => a.id - b.id);
+    window.SOR = importedSOR;
     if (window.persistSOR) window.persistSOR();
   } else if (module === 'customers') {
     DB.customers ||= [];
@@ -229,4 +247,4 @@ function addPdfModuleRecord(module, record) {
   }
 }
 
-Object.assign(window, { openDataImport, runDataImport, downloadImportTemplate, openPdfBulkImport, runPdfBulkImport });
+Object.assign(window, { openDataImport, runDataImport, downloadImportTemplate, applyDataImport, openPdfBulkImport, runPdfBulkImport });
