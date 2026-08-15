@@ -825,6 +825,20 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .settings-integration > span { width:36px; height:36px; display:grid; place-items:center; border-radius:10px; background:var(--surface-soft); color:var(--primary-dark); }
 .settings-integration svg { width:18px; height:18px; }
 .settings-integration b,.settings-integration small { display:block; }.settings-integration small { margin-top:2px; color:var(--text-muted); font-size:11px; }
+.quotation-edit-intro { margin:0 0 13px; }
+.quotation-edit-reasons { display:grid; gap:9px; }
+.quotation-edit-reason { width:100%; display:grid; grid-template-columns:34px minmax(0,1fr) 18px; align-items:center; gap:11px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text-primary); text-align:left; transition:border-color var(--dur-fast),background var(--dur-fast),box-shadow var(--dur-fast); }
+.quotation-edit-reason:hover { border-color:var(--border-strong); background:var(--surface-soft); }
+.quotation-edit-reason.selected { border-color:var(--primary-dark); background:var(--primary-tint); box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 16%,transparent); }
+.quotation-edit-reason > span { width:32px; height:32px; display:grid; place-items:center; border-radius:9px; background:var(--surface-soft); color:var(--primary-dark); font:700 12px 'Space Grotesk',sans-serif; }
+.quotation-edit-reason.selected > span { background:var(--primary-dark); color:#fff; }
+.quotation-edit-reason b,.quotation-edit-reason small { display:block; }
+.quotation-edit-reason b { font-size:13px; }
+.quotation-edit-reason small { margin-top:3px; color:var(--text-muted); font-size:11px; line-height:1.4; }
+.quotation-edit-reason > i { width:16px; height:16px; border:2px solid var(--border-strong); border-radius:50%; }
+.quotation-edit-reason.selected > i { border:5px solid var(--primary-dark); }
+.quotation-director-note { margin:13px 0 0; }
+.modal-foot .btn:disabled { opacity:.48; cursor:not-allowed; }
 html[data-density='compact'] .card-pad { padding:14px; } html[data-density='compact'] .tbl td { padding-block:8px; }
 html[data-density='compact'] .nav-item { padding-block:7px; }
 html:has(.settings-switch-row .switch-input[onchange*='reduceMotion']:checked) *,html:has(.settings-switch-row .switch-input[onchange*='reduceMotion']:checked) *::before,html:has(.settings-switch-row .switch-input[onchange*='reduceMotion']:checked) *::after { animation-duration:.01ms!important; transition-duration:.01ms!important; }
