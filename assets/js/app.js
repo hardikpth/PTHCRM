@@ -2595,18 +2595,18 @@ function refreshSOR() { const s = document.getElementById('sorSearch'); if (s &&
 VIEWS.sor = function (c) {
   const SOR = window.SOR || [];
   const st = sorStats();
-  const actions = `<button class="btn btn-ghost hide-sm" onclick="openDataImport('sor')">${I.upload}Import Excel</button><button class="btn btn-ghost hide-sm" onclick="exportSOR()">${I.export}Export</button><button class="btn btn-ghost" onclick="openSorCategoryModal()">${I.plus}Add Category</button><button class="btn btn-primary" onclick="startNewQuotation()">${I.quote}New Quotation</button>`;
+  const actions = `<button class="btn btn-ghost hide-sm" onclick="openDataImport('sor')">${I.upload}Import Excel</button><button class="btn btn-ghost hide-sm" onclick="exportSOR()">${I.export}Export</button><button class="btn btn-ghost" onclick="openSorCategoryModal()">${I.plus}Add Category</button><button class="btn btn-ghost" onclick="openSorServiceModal()">${I.plus}Add Service Rate</button><button class="btn btn-primary" onclick="startNewQuotation()">${I.quote}New Quotation</button>`;
   c.innerHTML = `${pageHead('Schedule of Rates', `${DB.brand.company} · FY ${window.SOR_META?.financialYear || '2026-27'} — master test rate list. All rates exclude GST; ${window.SOR_META?.gstRate || 18}% GST is added extra.`, actions)}
     <div class="stat-strip enter" style="margin-bottom:16px">
       <div class="stat-chip"><div class="sc-val tnum">${st.cats}</div><div class="sc-label">Categories</div></div>
-      <div class="stat-chip"><div class="sc-val tnum">${st.tests}</div><div class="sc-label">Total tests</div></div>
+      <div class="stat-chip"><div class="sc-val tnum">${st.tests}</div><div class="sc-label">Services</div></div>
       <div class="stat-chip"><div class="sc-val tnum" style="color:var(--primary-dark)">${st.priced}</div><div class="sc-label"><span class="dot" style="background:var(--primary-dark)"></span>Priced</div></div>
       <div class="stat-chip"><div class="sc-val tnum" style="color:var(--text-muted)">${st.onReq}</div><div class="sc-label"><span class="dot" style="background:var(--text-muted)"></span>On request</div></div>
       <div class="stat-chip"><div class="sc-val tnum">${st.packages}</div><div class="sc-label">Packages</div></div>
       <div class="stat-chip"><div class="sc-val tnum">${inr(st.avg)}</div><div class="sc-label">Avg. rate</div></div>
     </div>
     <div class="filter-bar enter">
-      <div class="filter-search">${I.search}<input placeholder="Search ${st.tests} tests by name, IS code or category..." id="sorSearch" value="${esc(sorSearchTerm)}" oninput="renderSOR(this.value)"></div>
+      <div class="filter-search">${I.search}<input placeholder="Search ${st.tests} services by name, code or category..." id="sorSearch" value="${esc(sorSearchTerm)}" oninput="renderSOR(this.value)"></div>
       <select class="fdrop" id="sorCat" onchange="renderSOR(document.getElementById('sorSearch').value)" style="min-width:200px"><option value="">All categories</option>${SOR.map(cat => `<option value="${cat.id}" ${sorCatFilter == cat.id ? 'selected' : ''}>${cat.id}. ${esc(cat.name)}</option>`).join('')}</select>
       <button class="btn btn-ghost btn-sm hide-sm" onclick="resetSOR()" title="Remove every category and test from the catalogue">Clear catalogue</button>
     </div>
@@ -2626,19 +2626,20 @@ function renderSOR(q) {
   let html = '', shownTests = 0, shownCats = 0;
   cats.forEach(cat => {
     const tests = (cat.tests || []).filter(t => !term || (t.name + ' ' + (t.code || '') + ' ' + (t.qty || '') + ' ' + cat.name).toLowerCase().includes(term));
-    if (!tests.length) return;
+    const categoryMatches = !term || cat.name.toLowerCase().includes(term);
+    if (!tests.length && (!categoryMatches || (cat.tests || []).length)) return;
     shownTests += tests.length; shownCats += 1;
     const packages = quoteComboOptions(cat);
     html += `<div class="card enter" style="margin-bottom:14px">
-      <div class="card-pad card-head" style="gap:10px;flex-wrap:wrap"><span class="badge badge-neutral"><span class="dot" style="background:var(--brand)"></span>${cat.id}</span><h3 style="font-size:14.5px">${esc(cat.name)}</h3><span class="card-sub">${tests.length} test${tests.length === 1 ? '' : 's'}</span>
+      <div class="card-pad card-head" style="gap:10px;flex-wrap:wrap"><span class="badge badge-neutral"><span class="dot" style="background:var(--brand)"></span>${cat.id}</span><h3 style="font-size:14.5px">${esc(cat.name)}</h3><span class="card-sub">${tests.length} service${tests.length === 1 ? '' : 's'}</span>
         <div class="row-actions" style="margin-left:auto">
           <button class="btn btn-ghost btn-sm" onclick="sorAddCategoryToQuote(${cat.id})" title="Add all tests to quotation">${I.quote}Add all</button>
-          <button class="mini-act" onclick="openSorTestModal(${cat.id})" title="Add test">${I.plus}</button>
+          <button class="btn btn-ghost btn-sm" onclick="openSorTestModal(${cat.id})" title="Add service and rate">${I.plus}Add Service</button>
           <button class="mini-act" onclick="openSorCategoryModal(${cat.id})" title="Edit category">${I.edit}</button>
           <button class="mini-act" onclick="deleteSorCategory(${cat.id})" title="Delete category">${I.x}</button>
         </div>
       </div>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:52px">Sr.</th><th>Name of Test</th><th>IS Code Reference</th><th>Sample Qty</th><th style="text-align:right">Rate (₹, excl. GST)</th><th style="width:118px"></th></tr></thead>
+      ${tests.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:52px">Sr.</th><th>Service / Test</th><th>Code Reference</th><th>Unit / Sample Qty</th><th style="text-align:right">Rate (₹, excl. GST)</th><th style="width:118px"></th></tr></thead>
       <tbody>${tests.map((t, i) => { const idx = cat.tests.indexOf(t); return `<tr>
         <td class="cell-dim tnum">${i + 1}</td>
         <td class="cell-strong">${esc(t.name)}</td>
@@ -2646,14 +2647,14 @@ function renderSOR(q) {
         <td class="cell-dim">${esc(t.qty || '—')}</td>
         <td class="tnum cell-strong" style="text-align:right">${t.rate != null ? esc(sorRateText(t)) : `<span style="color:var(--text-muted);font-weight:500">${esc(t.rateText || 'On request')}</span>`}</td>
         <td onclick="event.stopPropagation()"><div class="row-actions"><button class="mini-act" onclick="sorAddTestToQuote(${cat.id},${idx})" title="Add to quotation">${I.plus}</button><button class="mini-act" onclick="openSorTestModal(${cat.id},${idx})" title="Edit">${I.edit}</button><button class="mini-act" onclick="deleteSorTest(${cat.id},${idx})" title="Delete">${I.x}</button></div></td>
-      </tr>`; }).join('')}</tbody></table></div>
+      </tr>`; }).join('')}</tbody></table></div>` : `<div class="empty" style="padding:24px"><h4>No services in this category</h4><p>Add the first service and its rate.</p><button class="btn btn-primary btn-sm" onclick="openSorTestModal(${cat.id})">${I.plus}Add Service Rate</button></div>`}
       ${packages.length ? `<div class="card-pad sor-combos">${packages.map((p, pi) => `<div class="sor-combo"><span class="sor-combo-icon">${I.info}</span><span><b>${esc(p.label)}</b> — ₹${p.rate.toLocaleString('en-IN')} · ${p.tests.length} tests</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="sorAddComboToQuote(${cat.id},${pi})">${I.quote}Add package</button></div>`).join('')}</div>` : ''}
     </div>`;
   });
   const catalogueEmpty = SOR.length === 0;
-  list.innerHTML = html || `<div class="empty"><div class="empty-ico">${catalogueEmpty ? I.plus : I.search}</div><h4>${catalogueEmpty ? 'No categories yet' : 'No tests found'}</h4><p>${catalogueEmpty ? 'Add your first category, then add tests and rates manually.' : 'Try a different search or category.'}</p>${catalogueEmpty ? `<button class="btn btn-primary" onclick="openSorCategoryModal()">${I.plus}Add Category</button>` : ''}</div>`;
+  list.innerHTML = html || `<div class="empty"><div class="empty-ico">${catalogueEmpty ? I.plus : I.search}</div><h4>${catalogueEmpty ? 'No categories yet' : 'No services found'}</h4><p>${catalogueEmpty ? 'Add your first category, then add services and rates manually.' : 'Try a different search or category.'}</p>${catalogueEmpty ? `<button class="btn btn-primary" onclick="openSorCategoryModal()">${I.plus}Add Category</button>` : ''}</div>`;
   const count = document.getElementById('sorCount');
-  if (count) count.textContent = html ? `Showing ${shownTests} test${shownTests === 1 ? '' : 's'} across ${shownCats} categor${shownCats === 1 ? 'y' : 'ies'}${term || sorCatFilter ? ' (filtered)' : ''}` : '';
+  if (count) count.textContent = html ? `Showing ${shownTests} service${shownTests === 1 ? '' : 's'} across ${shownCats} categor${shownCats === 1 ? 'y' : 'ies'}${term || sorCatFilter ? ' (filtered)' : ''}` : '';
 }
 /* ---------- SOR — add to quotation ---------- */
 function sorAddTestToQuote(catId, idx) {
@@ -2677,9 +2678,9 @@ function openSorTestModal(catId, idx) {
   const cat = sorCat(catId); if (!cat) return;
   const editing = idx != null && idx >= 0, t = editing ? cat.tests[idx] : { name: '', code: '', qty: '', rate: 0, rateText: '' };
   const onReq = t.rate == null;
-  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Test' : 'Add Test'} — ${esc(cat.name)}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
+  openModal(`<div class="modal-head"><div class="modal-title">${editing ? 'Edit Service Rate' : 'Add Service Rate'} — ${esc(cat.name)}</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div>
     <div class="modal-body">
-      <div class="field" id="st-name"><label>Name of Test <span class="req">*</span></label><input class="input" id="stName" value="${esc(t.name)}" placeholder="e.g. Compressive Strength"><div class="field-err">${I.info}Test name is required</div></div>
+      <div class="field" id="st-name"><label>Service / Test Name <span class="req">*</span></label><input class="input" id="stName" value="${esc(t.name)}" placeholder="e.g. Compressive Strength Test"><div class="field-err">${I.info}Service name is required</div></div>
       <div class="form-grid"><div class="field"><label>IS Code Reference</label><input class="input" id="stCode" value="${esc(t.code || '')}" placeholder="e.g. IS 516"></div><div class="field"><label>Sample Quantity</label><input class="input" id="stQty" value="${esc(t.qty || '')}" placeholder="e.g. 3 Nos."></div></div>
       <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
         <span class="toggle ${onReq ? 'on' : ''}" id="stOnReq" onclick="this.classList.toggle('on');const on=this.classList.contains('on');document.getElementById('stRate').disabled=on;document.getElementById('stRate').style.opacity=on?'.5':'1';document.getElementById('st-onreqtext').style.display=on?'block':'none'"></span>
@@ -2688,7 +2689,13 @@ function openSorTestModal(catId, idx) {
       <div class="field" style="margin-top:12px"><label>Rate excluding GST (₹)</label><input class="input tnum" id="stRate" type="number" min="0" value="${t.rate != null ? t.rate : ''}" ${onReq ? 'disabled style="opacity:.5"' : ''}></div>
       <div class="field" id="st-onreqtext" style="display:${onReq ? 'block' : 'none'}"><label>On-request label</label><input class="input" id="stRateText" value="${esc(onReq ? (t.rateText || 'On request') : '')}" placeholder="e.g. On request / Included in package"></div>
     </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorTest(${cat.id},${editing ? idx : -1})">${I.check}${editing ? 'Save Changes' : 'Add Test'}</button></div>`);
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSorTest(${cat.id},${editing ? idx : -1})">${I.check}${editing ? 'Save Changes' : 'Add Service Rate'}</button></div>`);
+}
+function openSorServiceModal() {
+  const categories = window.SOR || [];
+  if (!categories.length) { toast('Add a category first', 'Create a category before adding its services and rates'); openSorCategoryModal(); return; }
+  if (categories.length === 1) { openSorTestModal(categories[0].id); return; }
+  openModal(`<div class="modal-head"><div class="modal-title">Add Service Rate</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><div class="field"><label>Select Category <span class="req">*</span></label><select class="input" id="sorServiceCategory">${categories.map(cat => `<option value="${cat.id}">${cat.id}. ${esc(cat.name)}</option>`).join('')}</select></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="const id=+document.getElementById('sorServiceCategory').value;closeModal();openSorTestModal(id)">${I.plus}Continue</button></div>`);
 }
 function saveSorTest(catId, idx) {
   const cat = sorCat(catId); if (!cat) return;
@@ -3374,6 +3381,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Expose for inline handlers and cross-module import persistence.
 Object.assign(window, { persistUsers, persistBranding, persistCredentials, persistScopes, resetQuotationFilters, signOut });
-Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
+Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorServiceModal, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.assign(window, { selectQuotationEditReason, cancelQuotationEditReason, confirmQuotationEditReason });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });
