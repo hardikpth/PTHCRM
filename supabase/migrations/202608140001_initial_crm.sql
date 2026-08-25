@@ -132,6 +132,14 @@ create policy quotation_lines_tenant on public.quotation_lines for all using(exi
 create policy followups_tenant on public.followups for all using(tenant_id=public.current_tenant_id()) with check(tenant_id=public.current_tenant_id());
 create policy audit_read on public.audit_events for select using(tenant_id=public.current_tenant_id() and public.is_manager());
 
+-- API privileges are required in addition to RLS policies. RLS still limits every
+-- authenticated user to the tenant assigned in public.profiles.
+grant usage on schema public to authenticated;
+grant select on table public.tenants, public.branches, public.profiles to authenticated;
+grant select, insert, update, delete on table public.app_state, public.clients, public.enquiries, public.quotations, public.quotation_lines, public.followups to authenticated;
+grant select, insert on table public.audit_events to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
 insert into public.tenants(slug,name) values('pramukh-test-house','Pramukh Test House') on conflict do nothing;
 insert into public.branches(tenant_id,code,name)
 select id,v.code,v.name from public.tenants cross join (values ('SURAT','Surat (HO)'),('AHMEDABAD','Ahmedabad'),('VADODARA','Vadodara'),('RAJKOT','Rajkot'),('MUMBAI','Mumbai')) v(code,name)
