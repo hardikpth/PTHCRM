@@ -3345,7 +3345,7 @@ async function doLogin() {
   const remember=document.getElementById('loginKeepSignedIn')?.checked===true;
   if (window.PTHBackend?.enabled) {
     try {
-      await window.PTHBackend.signIn(u?.email || `${uname}@pramukhtesthouse.com`, password);
+      await window.PTHBackend.signIn(u?.authEmail || u?.email || `${uname}@pramukhtesthouse.com`, password);
     } catch (error) {
       toast('Secure sign-in failed', error.message || 'Check your email and password.', 'err');
       passInput?.focus();

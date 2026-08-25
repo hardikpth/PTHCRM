@@ -39,7 +39,7 @@ const DB = {
 
   // Managed preview users are retained so each role can access the clean workspace.
   users: [
-    { id: 'U-001', name: 'Hardik', username: 'hardik', email: 'hardik@pramukhtesthouse.com', phone: '+91-9016329736', role: 'Laboratory Head', branch: 'Surat (HO)', initials: 'HK', status: 'active', lastLogin: '—' },
+    { id: 'U-001', name: 'Hardik', username: 'hardik', email: 'hardik@pramukhtesthouse.com', authEmail: 'hardik.pth@gmail.com', phone: '+91-9016329736', role: 'Laboratory Head', branch: 'Surat (HO)', initials: 'HK', status: 'active', lastLogin: '—' },
     { id: 'U-002', name: 'Tushal', username: 'tushal', email: 'tushal@pramukhtesthouse.com', role: 'Quality Manager', branch: 'Surat (HO)', initials: 'TU', status: 'active', lastLogin: '—' },
     { id: 'U-003', name: 'Shivang', username: 'shivang', email: 'shivang@pramukhtesthouse.com', role: 'Technical Manager', branch: 'Ahmedabad', initials: 'SH', status: 'active', lastLogin: '—' },
     { id: 'U-004', name: 'Jaydeep', username: 'jaydeep', email: 'jaydeep@pramukhtesthouse.com', role: 'CRM Manager', branch: 'Surat (HO)', initials: 'JD', status: 'active', lastLogin: '—' },
