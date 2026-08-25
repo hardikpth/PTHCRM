@@ -15,6 +15,7 @@
   const tenant = config.tenant || 'pramukh-test-house';
   let applyingRemote = false;
   let token = '';
+  let recoverySession = false;
   let writeTimer = 0;
   const pending = new Map();
 
@@ -44,6 +45,20 @@
   async function signOut() {
     if (enabled && token) await request('/auth/v1/logout', { method: 'POST' }).catch(() => {});
     saveSession(null);
+  }
+  async function requestPasswordReset(email) {
+    if (!enabled) throw new Error('Secure authentication is not configured.');
+    const redirectTo = `${location.origin}${location.pathname}?password-reset=1`;
+    return request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+      method: 'POST', body: JSON.stringify({ email })
+    });
+  }
+  async function updatePassword(password) {
+    if (!enabled || !token) throw new Error('Please sign in again before changing the password.');
+    const result = await request('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password }) });
+    recoverySession = false;
+    history.replaceState(null, '', `${location.pathname}${location.search.replace(/([?&])password-reset=1(&|$)/, '$1').replace(/[?&]$/, '')}`);
+    return result;
   }
   async function refreshSession() {
     const session = currentSession();
@@ -94,11 +109,21 @@
 
   localStorage.setItem = function syncedSetItem(key, value) { originalSetItem(key, value); scheduleWrite(key, value); };
   localStorage.removeItem = function syncedRemoveItem(key) { originalRemoveItem(key); };
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (hash.get('access_token')) {
+    saveSession({
+      ...(currentSession() || {}), access_token: hash.get('access_token'),
+      refresh_token: hash.get('refresh_token') || '', token_type: hash.get('token_type') || 'bearer',
+      expires_in: Number(hash.get('expires_in') || 3600), expires_at: Math.floor(Date.now() / 1000) + Number(hash.get('expires_in') || 3600)
+    });
+    recoverySession = hash.get('type') === 'recovery' || new URLSearchParams(location.search).get('password-reset') === '1';
+    history.replaceState(null, '', `${location.pathname}?password-reset=1`);
+  }
   const session = currentSession();
   token = session?.access_token || '';
   if (enabled && session?.expires_at && session.expires_at * 1000 < Date.now() + 60000) refreshSession();
   if (enabled && token) hydrate().then(changed => { if (changed) location.reload(); }).catch(error => window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })));
   if (enabled) setInterval(() => token && hydrate().then(changed => { if (changed && !document.querySelector('.modal-scrim.open')) location.reload(); }).catch(() => {}), Math.max(5000, Number(config.syncIntervalMs) || 15000));
   window.addEventListener('beforeunload', flush);
-  window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, hasSession: () => Boolean(token) });
+  window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
 })();
