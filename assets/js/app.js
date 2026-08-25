@@ -1838,6 +1838,48 @@ function allClients() {
   DB.pipeline.leads.forEach(l => { const k = String(l.cust).toLowerCase(); if (!map.has(k)) map.set(k, { name: l.cust, cat: l.cat || 'General', contact: '', email: '', phone: '', derived: true }); });
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
+let quotationClientResults = [];
+let quotationClientActiveIndex = -1;
+function quotationRecentClientNames() {
+  const ordered = [...(savedQuotations || [])].sort((a, b) => String(b.updatedAt || b.date || '').localeCompare(String(a.updatedAt || a.date || '')));
+  return [...new Set(ordered.map(q => q.customer).filter(Boolean))].slice(0, 8);
+}
+function quotationClientMatches(term = '') {
+  const clients = allClients(), query = String(term).trim().toLowerCase();
+  if (query) return clients.filter(c => `${c.name} ${c.contact || ''} ${c.phone || ''} ${c.email || ''} ${c.gst || ''} ${c.address || ''}`.toLowerCase().includes(query)).slice(0, 12);
+  const recent = quotationRecentClientNames(), byName = new Map(clients.map(c => [String(c.name).toLowerCase(), c]));
+  const recentClients = recent.map(name => byName.get(String(name).toLowerCase())).filter(Boolean);
+  const recentKeys = new Set(recentClients.map(c => String(c.name).toLowerCase()));
+  return [...recentClients, ...clients.filter(c => !recentKeys.has(String(c.name).toLowerCase()))].slice(0, 12);
+}
+function renderQuotationClientMatches(term = '') {
+  const box = document.getElementById('qCustomerMatches'); if (!box) return;
+  quotationClientResults = quotationClientMatches(term); quotationClientActiveIndex = -1;
+  const searching = !!String(term).trim();
+  box.innerHTML = `<div style="padding:8px 11px 5px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em">${searching ? 'Matching clients' : 'Recent and available clients'}</div>${quotationClientResults.map((client, index) => `<button type="button" data-quotation-client-result="${index}" onmousedown="event.preventDefault()" onclick="selectQuotationClientResult(${index})" style="width:100%;border:0;border-top:1px solid var(--border);background:transparent;color:var(--text);padding:10px 12px;text-align:left;cursor:pointer;display:block"><strong style="display:block">${esc(client.name)}</strong><span style="display:block;margin-top:3px;font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc([client.contact, client.phone, client.email, client.gst].filter(Boolean).join(' · ') || client.cat || 'Client')}</span></button>`).join('')}${quotationClientResults.length ? '' : `<div style="padding:14px 12px;color:var(--text-muted)">No matching client. Use <b>New Client</b> to add one.</div>`}`;
+  box.style.display = 'block';
+}
+function selectQuotationClient(name) {
+  const input = document.getElementById('qCustomer'); if (!input) return;
+  input.value = name;
+  const client = allClients().find(c => String(c.name).toLowerCase() === String(name).toLowerCase());
+  const attention = document.getElementById('qKindAttention');
+  if (attention && client?.contact && !attention.value.trim()) attention.value = client.contact;
+  const box = document.getElementById('qCustomerMatches'); if (box) box.style.display = 'none';
+}
+function selectQuotationClientResult(index) { const client = quotationClientResults[index]; if (client) selectQuotationClient(client.name); }
+function closeQuotationClientMatches() { setTimeout(() => { const box = document.getElementById('qCustomerMatches'); if (box) box.style.display = 'none'; }, 160); }
+function quotationClientKeydown(event) {
+  const box = document.getElementById('qCustomerMatches'); if (!box) return;
+  if (event.key === 'Escape') { box.style.display = 'none'; return; }
+  if (!['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+  const buttons = [...box.querySelectorAll('[data-quotation-client-result]')]; if (!buttons.length) return;
+  event.preventDefault();
+  if (event.key === 'Enter') { selectQuotationClientResult(quotationClientActiveIndex >= 0 ? quotationClientActiveIndex : 0); return; }
+  quotationClientActiveIndex = event.key === 'ArrowDown' ? (quotationClientActiveIndex + 1) % buttons.length : (quotationClientActiveIndex - 1 + buttons.length) % buttons.length;
+  buttons.forEach((button, index) => { button.style.background = index === quotationClientActiveIndex ? 'var(--surface-soft)' : 'transparent'; });
+  buttons[quotationClientActiveIndex].scrollIntoView({ block: 'nearest' });
+}
 let clientFilter = { search: '', cat: 'all', status: 'all' };
 let clientView = 'list';
 let clientSort = { key: 'name', dir: 1 };
@@ -2019,6 +2061,7 @@ function saveClient(originalName) {
   persistClients(); if(!existing)clientFilter={search:'',cat:'all',status:'all'}; closeModal();
   toast(existing ? 'Client updated' : 'Client added', `${name} · ${rec.cat}`); logAudit(existing ? 'Edit' : 'Create', 'Clients', `${name} ${existing ? 'updated' : 'added'}`);
   if (state.route === 'customers') VIEWS.customers(document.getElementById('canvas'));
+  if (state.route === 'createquotation') selectQuotationClient(name);
 }
 function deleteClient(name) {
   const c = findClient(name);
@@ -2228,7 +2271,7 @@ VIEWS.createquotation = function (c) {
       <div class="col-9"><div class="card card-pad enter quotation-sheet quote-layout" style="${quotationLayoutStyle()}">
         ${quotationHeader()}
         <div class="card-head quote-editor-head"><h3>Quotation Builder</h3><span class="card-sub" style="margin-left:auto">Rates auto-filled from SOR</span></div>
-        <div class="form-grid quote-identity" style="margin-top:12px"><div class="field"><label>Client</label><select class="select" id="qCustomer">${[...new Set([...DB.pipeline.leads.map(l=>l.cust),...(DB.customers||[]).map(x=>x.name)])].map(x=>`<option ${editingQuotationCustomer===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Quotation No.</label><input class="input" id="qNumber" value="${editingQuotationNumber||nextQuotationNumber()}" readonly></div><div class="field"><label>Kind Attention</label><input class="input" id="qKindAttention" value="${esc(quoteKindAttention)}" placeholder="Name / designation of recipient"></div><div class="field"><label>PTH Representative</label><div class="quotation-representative">${esc(currentQuotationRepresentative().name)} · ${esc(currentQuotationRepresentative().phone)}</div></div></div>
+        <div class="form-grid quote-identity" style="margin-top:12px"><div class="field"><label>Client</label><div style="display:flex;gap:7px;align-items:stretch"><div style="position:relative;flex:1;min-width:0"><input class="input" id="qCustomer" value="${esc(editingQuotationCustomer)}" autocomplete="off" placeholder="Search name, contact, phone, email or GST..." onfocus="renderQuotationClientMatches(this.value)" oninput="renderQuotationClientMatches(this.value)" onkeydown="quotationClientKeydown(event)" onblur="closeQuotationClientMatches()"><div id="qCustomerMatches" style="display:none;position:absolute;z-index:40;top:calc(100% + 5px);left:0;right:0;max-height:310px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.16)"></div></div><button type="button" class="btn btn-ghost" style="white-space:nowrap;padding-inline:10px" onclick="openClientModal()">${I.plus}New Client</button></div><div class="page-desc" style="margin-top:5px">Type to search, or choose a recent client.</div></div><div class="field"><label>Quotation No.</label><input class="input" id="qNumber" value="${editingQuotationNumber||nextQuotationNumber()}" readonly></div><div class="field"><label>Kind Attention</label><input class="input" id="qKindAttention" value="${esc(quoteKindAttention)}" placeholder="Name / designation of recipient"></div><div class="field"><label>PTH Representative</label><div class="quotation-representative">${esc(currentQuotationRepresentative().name)} · ${esc(currentQuotationRepresentative().phone)}</div></div></div>
         <div class="quote-builder-controls" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap;padding:12px;background:var(--surface-soft);border:1px solid var(--border);border-radius:12px">
           <div style="flex:1;min-width:180px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Test category</label><select class="select" id="qCat" onchange="quoteFillTests()">${SOR.map(cat=>`<option value="${cat.id}">${cat.id}. ${esc(cat.name)}</option>`).join('')}</select></div>
           <div style="flex:2;min-width:220px"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Test / service</label><select class="select" id="qTest"></select></div>
@@ -2254,6 +2297,7 @@ function saveQuotation() {
   if (!quoteLines.length) { toast('Add quotation items', 'At least one test or service is required.', 'err'); return; }
   const customer=document.getElementById('qCustomer')?.value, number=document.getElementById('qNumber')?.value;
   if (!customer || !number) { toast('Quotation details required', 'Select a customer before saving.', 'err'); return; }
+  if (!allClients().some(c => String(c.name).toLowerCase() === String(customer).trim().toLowerCase())) { toast('Select a valid client', 'Choose a client from the search results, or add a new client first.', 'err'); document.getElementById('qCustomer')?.focus(); return; }
   const totals=calculateQuoteTotals();
   const representative=currentQuotationRepresentative();
   const validDate=new Date();validDate.setDate(validDate.getDate()+30);
@@ -3416,4 +3460,5 @@ Object.assign(window, { persistUsers, persistBranding, persistCredentials, persi
 Object.assign(window, { forgotPassword, submitPasswordReset });
 Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorServiceModal, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.assign(window, { selectQuotationEditReason, cancelQuotationEditReason, confirmQuotationEditReason });
+Object.assign(window, { renderQuotationClientMatches, selectQuotationClientResult, closeQuotationClientMatches, quotationClientKeydown });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });
