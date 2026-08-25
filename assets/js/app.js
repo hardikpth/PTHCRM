@@ -816,7 +816,7 @@ const ENTERPRISE_ACTIVITY_DEFAULTS=['Call','Email','WhatsApp','Meeting','Site Vi
 let enterpriseCRM=(()=>{const defaults={siteVisits:[],competitors:[],clientFinance:{},quotationRevisions:[],customFields:[],activityTypes:ENTERPRISE_ACTIVITY_DEFAULTS.map((name,i)=>({id:`ACT-${i+1}`,name,active:true,color:['#176b4d','#2563eb','#16a34a','#7c3aed','#d97706','#0891b2','#be123c','#475569'][i]})),savedReports:[],reportSchedules:[],permissions:{'Laboratory Head':{financial:true,pricing:true,allRecords:true,approve:true,configure:true},'CRM Manager':{financial:true,pricing:true,allRecords:true,approve:false,configure:true},'Quality Manager':{financial:false,pricing:false,allRecords:true,approve:false,configure:false},'Technical Manager':{financial:false,pricing:true,allRecords:false,approve:false,configure:false},'Authorised Signatory':{financial:false,pricing:false,allRecords:false,approve:false,configure:false}},managementApprovals:[],retentionSettings:{dormantDays:45,criticalDays:90},reportLastRun:{}};try{const s=JSON.parse(localStorage.getItem(ENTERPRISE_CRM_KEY)||'{}');return{...defaults,...s,permissions:{...defaults.permissions,...(s.permissions||{})},retentionSettings:{...defaults.retentionSettings,...(s.retentionSettings||{})}};}catch(e){return defaults;}})();
 function persistEnterpriseCRM(){try{localStorage.setItem(ENTERPRISE_CRM_KEY,JSON.stringify(enterpriseCRM));}catch(e){}}
 function enterpriseRole(){return DB.user.role||'User';}
-function enterprisePermission(key){const p=enterpriseCRM.permissions[enterpriseRole()]||{};return p[key]===true;}
+function enterprisePermission(key){const role=enterpriseRole();if(role==='Director')return true;if(role==='Sales Executive')return key==='pricing';const p=enterpriseCRM.permissions[role]||{};return p[key]===true;}
 function enterpriseOwnerAliases(){return new Set([DB.user.name,DB.user.initials,...analyticsPersonAliases(DB.user.name)].filter(Boolean).map(x=>String(x).toLowerCase()));}
 function canViewCrmRecord(record){if(enterprisePermission('allRecords'))return true;const aliases=enterpriseOwnerAliases(),owner=String(record.person||record.assignee||record.createdBy||record.representative?.name||'').toLowerCase();return !owner||aliases.has(owner);}
 function maskFinancial(value){return enterprisePermission('financial')?inr(+value||0):'Restricted';}
@@ -3329,6 +3329,7 @@ function renderLogin() {
           <div class="field"><label>Username</label>
             <select class="input" id="loginUser" onchange="loginPickUser()">${DB.users.filter(u=>u.status==='active').map((u,i)=>`<option value="${u.username}" ${i===0?'selected':''}>${u.name} — ${u.role}</option>`).join('')}</select>
           </div>
+          <div class="field"><label>Registered email</label><input class="input" type="email" id="loginEmail" autocomplete="username" placeholder="Email used in Supabase"></div>
           <div class="field"><label>Password</label><input class="input" type="password" id="loginPass" value="${window.PTHBackend?.enabled?'':DEMO_PASSWORD}" autocomplete="current-password"></div>
           <div style="display:grid;gap:10px;margin-bottom:18px"><label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-secondary)"><input type="checkbox" id="loginSavePassword">Save password in this browser</label><label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-secondary)"><input type="checkbox" id="loginKeepSignedIn" checked>Keep me signed in after refresh</label><button type="button" onclick="forgotPassword()" style="border:0;background:none;padding:0;text-align:left;font-size:12.5px;color:var(--primary-dark);font-weight:600;cursor:pointer">Forgot password?</button></div>
           <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Sign In ${I.arrowR}</button>
@@ -3341,7 +3342,7 @@ function renderLogin() {
   setTimeout(fillPasswordFromBrowser,0);
 }
 async function forgotPassword(){
-  const uname=document.getElementById('loginUser')?.value,u=DB.users.find(x=>x.username===uname),email=u?.authEmail||u?.email;
+  const uname=document.getElementById('loginUser')?.value,u=DB.users.find(x=>x.username===uname),email=document.getElementById('loginEmail')?.value.trim();
   if(!window.PTHBackend?.enabled||!email){toast('Password reset unavailable','Select a user with a registered email address.','err');return;}
   try{await window.PTHBackend.requestPasswordReset(email);toast('Password reset email sent',`Check ${email} and use the secure reset link.`,'ok');}
   catch(error){toast('Could not send reset email',error.message||'Please try again shortly.','err');}
@@ -3364,7 +3365,9 @@ async function doLogin() {
   const remember=document.getElementById('loginKeepSignedIn')?.checked===true;
   if (window.PTHBackend?.enabled) {
     try {
-      await window.PTHBackend.signIn(u?.authEmail || u?.email || `${uname}@pramukhtesthouse.com`, password);
+      const email=document.getElementById('loginEmail')?.value.trim();
+      if(!email){toast('Registered email required','Enter the email used when this Supabase user was created.','err');return;}
+      await window.PTHBackend.signIn(email, password);
     } catch (error) {
       toast('Secure sign-in failed', error.message || 'Check your email and password.', 'err');
       passInput?.focus();
