@@ -2423,9 +2423,10 @@ async function generateQuotationPdfBlob(q){
     const gross=item.onReq?0:qty*Number(item.rate||0),lineDisc=Math.round(gross*dp/100),amount=gross-lineDisc;
     const categoryLines=wrap(item.category||'Uncategorised',descW-12,8.2,bold);
     const nameLines=wrap(item.name||'Service',descW-12,8.1,font);
+    const descriptionLines=item.description?wrap(item.description,descW-12,7.7,font):[];
     const metaBits=[item.code?('Ref: '+item.code):'',item.parameters?.length?('Parameters: '+item.parameters.join('; ')):''].filter(Boolean).join('   |   ');
     const metaLines=metaBits?wrap(metaBits,descW-12,7,font):[];
-    const rowH=Math.max(32,8+categoryLines.length*10+nameLines.length*10+(metaLines.length?metaLines.length*8.4+2:0)+4);
+    const rowH=Math.max(32,8+categoryLines.length*10+nameLines.length*10+(descriptionLines.length?descriptionLines.length*9+2:0)+(metaLines.length?metaLines.length*8.4+2:0)+4);
     if(y-rowH<bottomLimit){startPage();drawTableHeader();}
     const top=y;
     if(index%2===1)page.drawRectangle({x:M,y:top-rowH,width:contentW,height:rowH,color:zebra});
@@ -2435,6 +2436,8 @@ async function generateQuotationPdfBlob(q){
         let ty=top-13;
         categoryLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:8.2,font:bold,color:ink});ty-=10;});
         nameLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:8.1,font,color:ink});ty-=10;});
+        if(descriptionLines.length)ty-=2;
+        descriptionLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:7.7,font,color:soft});ty-=9;});
         if(metaLines.length)ty-=2;
         metaLines.forEach(l=>{page.drawText(safe(l),{x:colX[i]+6,y:ty,size:7,font,color:soft});ty-=8.4;});
         return;
@@ -2575,6 +2578,10 @@ function quoteSetLineDiscount(i, value) {
   l.disc = Math.min(100, Math.max(0, +value || 0));
   renderQuoteLines();
 }
+function quoteSetLineDescription(i, value) {
+  const line = quoteLines[i]; if (!line) return;
+  line.description = String(value || '').trim();
+}
 function quoteApplyTermsTemplate(key) {
   quoteTermsKey = key in QUOTE_TERMS ? key : 'general'; quoteTermsText = QUOTE_TERMS[quoteTermsKey];
   const field=document.getElementById('qTermsText'); if(field) field.value=quoteTermsText;
@@ -2612,7 +2619,7 @@ function renderQuoteLines() {
     return `
     <tr>
       <td class="tnum cell-dim">${i+1}</td>
-      <td><div class="quote-description-category">${esc(l.category || 'Uncategorised')}</div><div class="quote-description-name">${esc(l.name)}</div>${l.code?`<div class="quote-description-code">Reference: ${esc(l.code)}</div>`:''}${l.parameters?.length?`<div class="quote-params">(${l.parameters.map(esc).join('; ')})</div>`:''}${l.custom?'<div class="quote-custom-tag">Out of SOR</div>':''}</td>
+      <td><div class="quote-description-category">${esc(l.category || 'Uncategorised')}</div><div class="quote-description-name">${esc(l.name)}</div><textarea class="input" rows="2" placeholder="Optional additional description — prints below parameter" oninput="quoteSetLineDescription(${i},this.value)" style="margin-top:7px;min-height:48px;resize:vertical;font-size:12px;line-height:1.35">${esc(l.description || '')}</textarea>${l.code?`<div class="quote-description-code">Reference: ${esc(l.code)}</div>`:''}${l.parameters?.length?`<div class="quote-params">(${l.parameters.map(esc).join('; ')})</div>`:''}${l.custom?'<div class="quote-custom-tag">Out of SOR</div>':''}</td>
       <td class="q-center"><input type="number" min="1" value="${l.qty}" onchange="quoteLines[${i}].qty=Math.max(1,+this.value||1);renderQuoteLines()" style="width:48px;${inS};text-align:center" class="tnum"></td>
       <td class="q-center"><input type="text" value="${esc(l.unit || 'Sample')}" onchange="quoteLines[${i}].unit=this.value.trim()||'Sample';renderQuoteLines()" style="width:74px;${inS};text-align:center"></td>
       <td class="q-num"><input type="number" min="0" step="1" value="${l.onReq ? '' : l.rate}" placeholder="On request" onchange="quoteSetLineRate(${i},this.value)" title="Enter a rate, or leave blank for On request" style="width:86px;${inS};text-align:right" class="tnum"></td>
@@ -3458,7 +3465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose for inline handlers and cross-module import persistence.
 Object.assign(window, { persistUsers, persistBranding, persistCredentials, persistScopes, resetQuotationFilters, signOut });
 Object.assign(window, { forgotPassword, submitPasswordReset });
-Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorServiceModal, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
+Object.assign(window, { navigate, VIEWS, toast, openDrawer, closeDrawer, openModal, closeModal, openCredDrawer, openLeadDrawer, openQuotationDrawer, openExpiryDrawer, openCredentialModal, submitCredential, openEnquiryModal, submitEnquiry, togglePkg, toggleAllRows, setAccent, applyBranding, doLogin, loginPickUser, quickAddMenu, quoteFillTests, quoteAddLine, openCustomQuoteLine, addCustomQuoteLine, quoteAddFullSOR, confirmAddFullSOR, setQuoteDiscount, quoteSetLineRate, quoteSetLineDiscount, quoteSetLineDescription, quoteApplyTermsTemplate, updateQuoteTermsText, renderQuoteLines, renderSOR, openUserModal, saveUser, toggleUserStatus, deleteUser, confirmDeleteUser, uSyncPass, renderUsersTable, renderAuditTable, exportAudit, setOverviewPeriod, exportOverview, saveQuotation, startNewQuotation, renderQuotationRegister, setQuotationFilter, updateQuotationStatus, duplicateQuotation, modifyQuotation, deleteQuotation, confirmDeleteQuotation, printQuotation, openQuotationSend, quotationForShare, generateQuotationPdfBlob, downloadQuotationPdf, shareQuotationPdf, formalQuotationMessage, gmailComposeUrl, emailQuotation, whatsappQuotation, renderQuotationTemplateCards, filterQuotationTemplates, selectQuotationTemplate, previewQuotationLayout, uploadQuotationAsset, saveQuotationLayout, logAudit, openFollowupModal, saveFollowup, completeFollowup, setFollowupFilter, syncFollowupCustomer, syncFollowupQuotation, exportFollowups, openFollowupDrawer, openCompleteFollowup, confirmCompleteFollowup, snoozeFollowup, deleteFollowup, confirmDeleteFollowup, launchFollowupChannel, newFollowupForCustomer, newFollowupForLead, newFollowupForQuote, updateFollowupBadge, enableFollowupReminders, notifyDueFollowups, setPipelineFilter, openLeadModal, saveLead, deleteLead, confirmDeleteLead, openWonModal, confirmWon, openLostModal, confirmLost, prepareQuotationForLead, setEnquiryFilter, exportEnquiries, persistSOR, sorAddTestToQuote, sorAddCategoryToQuote, sorAddComboToQuote, openSorServiceModal, openSorTestModal, saveSorTest, deleteSorTest, confirmDeleteSorTest, openSorCategoryModal, saveSorCategory, deleteSorCategory, confirmDeleteSorCategory, exportSOR, resetSOR, confirmResetSOR, openClientModal, saveClient, deleteClient, confirmDeleteClient, openClientDrawer, launchClientChannel, setClientFilter, setClientView, setClientSort, renderClients, exportClients, persistClients, persistPipeline });
 Object.assign(window, { selectQuotationEditReason, cancelQuotationEditReason, confirmQuotationEditReason });
 Object.assign(window, { renderQuotationClientMatches, selectQuotationClientResult, closeQuotationClientMatches, quotationClientKeydown });
 Object.defineProperty(window, 'quoteLines', { get: () => quoteLines, set: v => { quoteLines = v; } });
