@@ -872,7 +872,8 @@ html:has(.settings-switch-row .switch-input[onchange*='reduceMotion']:checked) *
 }
 @media (max-width: 900px) {
   .sidebar { position: fixed; left: 0; transform: translateX(-100%); transition: transform var(--dur) var(--ease); }
-  .app.mobile-open .sidebar { transform: translateX(0); box-shadow: var(--shadow-lg); }
+  .app.mobile-open .sidebar { transform: translateX(0); box-shadow: var(--shadow-lg); z-index: 70; }
+  .app.mobile-open .mobile-nav { pointer-events: none; }
   .app.collapsed .sidebar { width: var(--sidebar-w); }
   .mobile-menu-btn { display: grid; }
   .col-3, .col-4, .col-6, .col-5, .col-7, .col-8, .col-9 { grid-column: span 12; }
