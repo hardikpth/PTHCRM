@@ -393,7 +393,8 @@ function navigate(route) {
   const canvas = document.getElementById('canvas');
   setRouteMotionContext(route);
   canvas.scrollTop = 0;
-  (VIEWS[route] || VIEWS.overview)(canvas);
+  const routeView = route === 'settings' && typeof renderSettingsView === 'function' ? renderSettingsView : VIEWS[route];
+  (routeView || VIEWS.overview)(canvas);
   enhanceDateTimeInputs(canvas);
   normalizeVisibleDateTimes(canvas);
   window.scrollTo(0, 0);
@@ -2847,7 +2848,7 @@ VIEWS.portal = function (c) {
 };
 
 /* ---------- SETTINGS ---------- */
-VIEWS.settings = function (c) {
+function renderLegacySettingsView(c) {
   c.innerHTML = `${pageHead('Settings', 'Branding, roles, permissions and appearance.', '')}
     <div class="grid dash-grid">
       <div class="col-3"><div class="card card-pad enter"><div class="settings-nav"><a class="active">Branding</a><a>Quotation Layout</a><a>Roles & Permissions</a><a>Branches</a><a>Notifications</a><a>Security</a><a>Appearance</a></div></div></div>
@@ -2916,7 +2917,7 @@ function settingsNavButton(id, label, icon, badge = '') { return `<button class=
 function settingsSectionHead(title, description, action = '') { return `<div class="settings-section-head"><div><h2>${title}</h2><p>${description}</p></div>${action}</div>`; }
 function settingsSwitch(label, description, key, on) { return `<label class="settings-switch-row"><span><b>${label}</b><small>${description}</small></span><input class="switch-input" type="checkbox" ${on ? 'checked' : ''} onchange="settingsToggle('${key}',this.checked)"><i></i></label>`; }
 function openSettingsSection(id) { activeSettingsSection = id; const host = document.getElementById('settingsContent'); if (host) host.innerHTML = renderSettingsSection(id); document.querySelectorAll('.settings-nav-btn').forEach(x => x.classList.toggle('active', x.getAttribute('onclick').includes(`'${id}'`))); if (id === 'quotation') previewQuotationLayout(); if (id === 'audit') renderAuditTable(''); }
-VIEWS.settings = function (c) {
+function renderSettingsView(c) {
   const activeUsers = DB.users.filter(x => x.status === 'active').length;
   c.innerHTML = `${pageHead('Settings', 'Manage your organisation, users, permissions, security and application preferences.', `<button class="btn btn-ghost" onclick="exportApplicationSettings()">${I.export}Export Settings</button>`)}
     <div class="settings-summary enter"><div><span>${I.employee}</span><b>${activeUsers}</b><small>Active users</small></div><div><span>${I.shield}</span><b>${Object.keys(enterpriseCRM.permissions).length}</b><small>Security roles</small></div><div><span>${I.branch || I.customer}</span><b>${adminSettings.branches.filter(x=>x.active).length}</b><small>Active branches</small></div><div><span>${I.check}</span><b>Saved</b><small>Browser configuration</small></div></div>
@@ -2926,7 +2927,8 @@ VIEWS.settings = function (c) {
       <section class="settings-content" id="settingsContent">${renderSettingsSection(activeSettingsSection)}</section>
     </div>`;
   if (activeSettingsSection === 'audit') renderAuditTable('');
-};
+}
+VIEWS.settings = renderSettingsView;
 function renderSettingsSection(id) {
   const o = adminSettings.organisation, n = adminSettings.notifications, s = adminSettings.security, a = adminSettings.appearance;
   if (id === 'general') return `${settingsSectionHead('Organisation profile','Information used throughout the CRM and on business documents.',`<button class="btn btn-primary" onclick="saveOrganisationSettings()">${I.check}Save Changes</button>`)}<div class="card card-pad settings-panel"><div class="form-grid"><div class="field"><label>Trading name</label><input class="input" id="orgTrading" value="${esc(DB.brand.company)}"></div><div class="field"><label>Legal entity name</label><input class="input" id="orgLegal" value="${esc(o.legalName)}"></div></div><div class="form-grid"><div class="field"><label>Business email</label><input class="input" id="orgEmail" type="email" value="${esc(o.email)}"></div><div class="field"><label>Telephone</label><input class="input" id="orgPhone" value="${esc(o.phone)}"></div></div><div class="form-grid"><div class="field"><label>GSTIN</label><input class="input" id="orgGstin" value="${esc(o.gstin)}" placeholder="24AAAAA0000A1Z5"></div><div class="field"><label>Financial year starts</label><select class="select" id="orgFY"><option ${o.financialYearStart==='April'?'selected':''}>April</option><option ${o.financialYearStart==='January'?'selected':''}>January</option></select></div></div><div class="field"><label>Registered address</label><textarea class="input" id="orgAddress" rows="3">${esc(o.address)}</textarea></div><div class="form-grid"><div class="field"><label>Time zone</label><select class="select" id="orgTimezone"><option value="Asia/Kolkata">India Standard Time (IST)</option></select></div><div class="field"><label>Currency</label><select class="select" id="orgCurrency"><option value="INR">Indian Rupee (INR)</option></select></div></div></div>`;
