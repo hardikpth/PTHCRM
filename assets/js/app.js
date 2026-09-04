@@ -277,6 +277,7 @@ function renderShell() {
         <button class="icon-btn" id="notifBtn" aria-label="Notifications">${I.bell}<span class="ping"></span></button>
         <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">${I.shield}</button>
         <div class="topbar-user" id="topbarUser">
+          <button class="btn btn-sm btn-ghost" id="backendSyncBtn" type="button" onclick="openSharedDataStatus()" title="Shared database status">Sync status</button>
           <button class="avatar" id="avatarBtn" type="button" aria-label="Open user menu" aria-haspopup="menu" aria-expanded="false" title="${DB.user.name} — ${DB.user.role}">${DB.user.initials}</button>
           <div class="user-menu" id="userMenu" role="menu" hidden>
             <div class="user-menu-head"><span class="avatar">${DB.user.initials}</span><div><strong>${esc(DB.user.name)}</strong><small>${esc(DB.user.role)}</small></div></div>
@@ -406,6 +407,11 @@ window.PTHHasUnsavedChanges = () => state.route === 'createquotation' ||
 window.addEventListener('pth-backend-error', event => {
   toast('Shared database save/sync needs attention', event.detail || 'Keep this tab open and check your connection.', 'err');
 });
+function updateSharedDataBadge(){const b=document.getElementById('backendSyncBtn'),s=window.PTHBackend?.status?.();if(!b||!s)return;b.textContent=s.error?'Sync error':s.pending.length?`${s.pending.length} unsent`:!s.signedIn?'Sign in to sync':'Sync status';b.style.color=s.error||s.pending.length?'var(--danger)':'';}
+window.addEventListener('pth-sync-status',updateSharedDataBadge);
+function openSharedDataStatus(){const s=window.PTHBackend?.status?.();if(!s)return;openModal(`<div class="modal-head"><div class="modal-title">Shared database status</div><button class="icon-btn drawer-close" onclick="closeModal()">${I.x}</button></div><div class="modal-body"><p>Quotations on this device: <b>${s.quotations}</b> · SOR services: <b>${s.services}</b></p><p>Waiting to upload: <b>${s.pending.length}</b></p><p>${s.pending.map(esc).join(', ')||'No queued saves. This does not confirm that entries created in an older app version were uploaded.'}</p><p>Last server check: ${esc(s.lastCheck||'Not checked in this session')}</p><p>Last confirmed upload: ${esc(s.lastSave||'No upload in this session')}</p>${s.error?`<div class="settings-warning">${esc(s.error)}</div>`:''}<p>If records are missing on another PC, download a recovery copy on the PC where they were entered. It includes SOR and quotations only, not passwords. Do not clear browser data.</p></div><div class="modal-foot"><button class="btn btn-ghost" onclick="downloadSharedDataRecovery()">Download recovery copy</button><button class="btn btn-primary" onclick="retrySharedDataSync()">Retry sync</button></div>`);}
+function downloadSharedDataRecovery(){const data=window.PTHBackend?.recoverySnapshot?.();if(!data)return;const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=`PTH-SOR-Quotation-Recovery-${localDateISO()}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function retrySharedDataSync(){closeModal();await window.PTHBackend?.syncNow?.();updateSharedDataBadge();openSharedDataStatus();}
 
 /* helper builders */
 function pageHead(title, desc, actions = '') {
@@ -3348,6 +3354,7 @@ function runCinema(done) {
 
 function boot() {
   renderShell();
+  updateSharedDataBadge();
   navigate('overview');
   updateFollowupBadge();
   setTimeout(notifyDueFollowups, 1200);

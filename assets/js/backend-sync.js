@@ -20,6 +20,32 @@
   const pending = new Map();
   const writing = new Set();
   const bases = new Map();
+  const journalPrefix = `pth_outbox_v3:${tenant}:`;
+  const backupPrefix = `pth_recovery_v3:${tenant}:`;
+  const writeIds = new Map();
+  let syncError = '', lastCheck = '', lastSave = '';
+  function jsonRead(key, fallback = null) { try { return JSON.parse(originalGetItem(key) || 'null') ?? fallback; } catch (_) { return fallback; } }
+  function status() {
+    const sor = jsonRead('pth_sor_v1', []), quotes = jsonRead('pth_quotations_v1', []);
+    return { enabled, signedIn: Boolean(token), pending: [...new Set([...pending.keys(), ...writing])], error: syncError, lastCheck, lastSave,
+      quotations: Array.isArray(quotes) ? quotes.length : 0,
+      services: Array.isArray(sor) ? sor.reduce((n, c) => n + (c.tests?.length || 0), 0) : 0 };
+  }
+  function report(error) {
+    if (error !== undefined) syncError = error;
+    window.dispatchEvent(new CustomEvent('pth-sync-status', { detail: status() }));
+  }
+  function recoverySnapshot() {
+    return { exportedAt: new Date().toISOString(), tenant, status: status(), modules: Object.fromEntries(['pth_sor_v1','pth_quotations_v1'].map(key => [key,
+      { current: jsonRead(key), pending: jsonRead(journalPrefix + key), beforeSync: jsonRead(backupPrefix + key) }])) };
+  }
+  // Restore unsent writes BEFORE remote hydration can replace browser data.
+  stores.forEach(key => {
+    const entry = jsonRead(journalPrefix + key);
+    if (!entry || !Object.prototype.hasOwnProperty.call(entry, 'payload')) return;
+    pending.set(key, entry.payload); bases.set(key, entry.base); writeIds.set(key, entry.id);
+    originalSetItem(key, JSON.stringify(entry.payload));
+  });
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function merge(base, local, remote) {
     if (same(local, base)) return remote;
@@ -54,7 +80,10 @@
   }
   async function request(path, options = {}) {
     const response = await fetch(`${config.url}${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
-    if (!response.ok) throw new Error((await response.text()) || `Backend request failed (${response.status})`);
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Shared database HTTP ${response.status}: ${body || 'Request failed'}`);
+    }
     return response.status === 204 ? null : response.json();
   }
   function currentSession() {
@@ -69,6 +98,7 @@
     if (!enabled) return { offline: true };
     const result = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password }) });
     saveSession(result);
+    await flush();
     const changed = await hydrate();
     return { ...result, changed };
   }
@@ -110,8 +140,10 @@
       return;
     }
     const rows = [...pending].map(([store_key, payload]) => ({ tenant_slug: tenant, store_key, payload }));
+    const sentIds = new Map(writeIds);
     pending.clear();
     rows.forEach(row => writing.add(row.store_key));
+    report();
     flushing = (async () => {
     try {
       for (const row of rows) {
@@ -129,6 +161,12 @@
             if (!result?.length) continue; // Concurrent write: re-read and merge, never blind overwrite.
             saved = true;
             bases.set(row.store_key, row.payload);
+            const entry = jsonRead(journalPrefix + row.store_key);
+            if (entry?.id === sentIds.get(row.store_key)) originalRemoveItem(journalPrefix + row.store_key);
+            else if (pending.has(row.store_key) && entry?.id === writeIds.get(row.store_key)) {
+              originalSetItem(journalPrefix + row.store_key, JSON.stringify({ ...entry, base: row.payload }));
+            }
+            lastSave = new Date().toISOString();
             // Force next hydration to update in-memory module state after a merge.
             delete versions[row.store_key];
             if (!same(payload, row.payload)) needsReload = true;
@@ -136,23 +174,28 @@
           if (!saved) throw new Error('Shared data is busy. Your save will retry automatically. Keep this tab open.');
         } catch (error) {
           if (!pending.has(row.store_key)) pending.set(row.store_key, row.payload);
+          report(error.message);
           window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message }));
         }
       }
     } finally {
       rows.forEach(row => writing.delete(row.store_key));
       flushing = null;
+      report(pending.size ? undefined : '');
       if (pending.size) { clearTimeout(writeTimer); writeTimer = setTimeout(flush, 60000); }
     }
     })();
     return flushing;
   }
   function scheduleWrite(key, value, previous) {
-    if (!enabled || !token || applyingRemote || !stores.has(key)) return;
-    try {
-      if (!bases.has(key)) bases.set(key, previous == null ? undefined : JSON.parse(previous));
-      pending.set(key, JSON.parse(value));
-    } catch (error) { return; }
+    if (!enabled || applyingRemote || !stores.has(key)) return;
+    const payload = JSON.parse(value);
+    if (!bases.has(key)) bases.set(key, previous == null ? undefined : JSON.parse(previous));
+    const id = `${Date.now()}-${Math.random()}`;
+    // Persist first; a full browser disk must not produce a false successful save.
+    originalSetItem(journalPrefix + key, JSON.stringify({ id, payload, base: bases.get(key) }));
+    writeIds.set(key, id); pending.set(key, payload);
+    report(token ? undefined : 'Saved on this device only. Sign in to upload your pending changes.');
     clearTimeout(writeTimer);
     writeTimer = setTimeout(flush, 450);
   }
@@ -163,6 +206,7 @@
     // Read tiny version metadata first. Never download unchanged module payloads.
     const base = `/rest/v1/app_state?tenant_slug=eq.${encodeURIComponent(tenant)}`;
     const metadata = await request(`${base}&select=store_key,updated_at`);
+    lastCheck = new Date().toISOString(); report(pending.size ? undefined : '');
     const keys = metadata.filter(row => stores.has(row.store_key) && !pending.has(row.store_key) && !writing.has(row.store_key) &&
       (versions[row.store_key] !== row.updated_at || originalGetItem(row.store_key) === null)).map(row => row.store_key);
     if (!keys.length) return false;
@@ -174,6 +218,9 @@
     rows.forEach(row => {
       if (!stores.has(row.store_key) || pending.has(row.store_key) || writing.has(row.store_key)) return;
       const value = JSON.stringify(row.payload);
+      if (['pth_sor_v1','pth_quotations_v1'].includes(row.store_key) && originalGetItem(row.store_key) !== value && originalGetItem(row.store_key) !== null && !originalGetItem(backupPrefix + row.store_key)) {
+        originalSetItem(backupPrefix + row.store_key, JSON.stringify({ capturedAt: new Date().toISOString(), payload: jsonRead(row.store_key) }));
+      }
       if (originalGetItem(row.store_key) !== value) { originalSetItem(row.store_key, value); changed = true; }
       versions[row.store_key] = row.updated_at;
       bases.set(row.store_key, row.payload);
@@ -193,8 +240,8 @@
   storagePrototype.setItem = function syncedSetItem(key, value) {
     if (this !== localStorage) return nativeSetItem.call(this, key, value);
     const previous = originalGetItem(key);
-    originalSetItem(key, value);
     if (previous !== String(value)) scheduleWrite(key, value, previous);
+    originalSetItem(key, value);
   };
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   if (hash.get('access_token')) {
@@ -210,14 +257,15 @@
   token = session?.access_token || '';
   async function syncVisible() {
     if (!enabled || !token || document.hidden) return;
-    if (document.querySelector('.modal-scrim.open') || window.PTHHasUnsavedChanges?.()) return;
     const active = currentSession();
     if (active?.expires_at && active.expires_at * 1000 < Date.now() + 60000 && !(await refreshSession())) return;
+    await flush();
+    if (document.querySelector('.modal-scrim.open') || window.PTHHasUnsavedChanges?.()) return;
     const changed = await hydrate();
     needsReload = needsReload || changed;
     if (needsReload && !pending.size && !writing.size && !document.querySelector('.modal-scrim.open') && !window.PTHHasUnsavedChanges?.()) location.reload();
   }
-  const check = () => syncVisible().catch(error => window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })));
+  const check = () => syncVisible().catch(error => { report(error.message); window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })); });
   if (enabled) {
     check();
     setInterval(check, Math.max(60000, Number(config.syncIntervalMs) || 60000));
@@ -226,5 +274,5 @@
   window.addEventListener('beforeunload', event => {
     if (pending.size || writing.size) { flush(); event.preventDefault(); event.returnValue = ''; }
   });
-  window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
+  window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, syncNow: check, status, recoverySnapshot, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
 })();

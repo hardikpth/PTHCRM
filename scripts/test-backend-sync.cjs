@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../assets/js/backend-sync.js'), 'utf8');
-function setup(server = { rows: [{ store_key: 'pth_clients_v1', payload: [{ id: 1, name: 'Client' }], updated_at: '1' }], version: 1 }) {
-  const values = new Map([['pth_backend_session_v1', JSON.stringify({ access_token: 'test' })]]);
+function setup(server = { rows: [{ store_key: 'pth_clients_v1', payload: [{ id: 1, name: 'Client' }], updated_at: '1' }], version: 1 }, existingValues) {
+  const values = existingValues || new Map([['pth_backend_session_v1', JSON.stringify({ access_token: 'test' })]]);
   const requests = [], timers = [], events = {};
   let fail = false;
   class Storage {
@@ -124,4 +124,36 @@ test('active form defers refresh until closed, then remote change becomes visibl
   form = false;
   await h.events.poll(); assert.equal(reloads, 1);
   assert.match(h.values.get('pth_clients_v1'), /Client/);
+});
+test('quotation upload failure survives a browser restart and reaches another user', async () => {
+  const server = { rows: [{store_key:'pth_quotations_v1',payload:[],updated_at:'1'}],version:1 };
+  const a=setup(server); await a.api.hydrate(); a.fail(true);
+  a.context.localStorage.setItem('pth_quotations_v1','[{"number":"Q-RECOVERY","total":123}]');
+  await a.api.flush(); assert.equal(a.api.status().pending.length,1);
+  const restarted=setup(server,a.values);
+  await restarted.api.hydrate();
+  assert.match(restarted.values.get('pth_quotations_v1'), /Q-RECOVERY/);
+  await restarted.api.flush(); assert.equal(restarted.api.status().pending.length,0);
+  const b=setup(server); await b.api.hydrate();
+  assert.match(b.values.get('pth_quotations_v1'), /Q-RECOVERY/);
+  assert.ok(![...a.values.keys()].some(k=>k.startsWith('pth_outbox_v3:')));
+});
+test('SOR services survive failed upload and restart', async () => {
+  const server={rows:[{store_key:'pth_sor_v1',payload:[{id:1,tests:[]}],updated_at:'1'}],version:1};
+  const a=setup(server);await a.api.hydrate();a.fail(true);
+  a.context.localStorage.setItem('pth_sor_v1','[{"id":1,"tests":[{"code":"NEW","rate":450}]}]');
+  await a.api.flush();const restarted=setup(server,a.values);await restarted.api.flush();
+  const b=setup(server);await b.api.hydrate();assert.equal(b.api.status().services,1);
+  assert.match(b.values.get('pth_sor_v1'),/NEW/);
+});
+test('legacy SOR and quotation data are preserved before remote replacement', async () => {
+  const server={rows:[{store_key:'pth_sor_v1',payload:[],updated_at:'1'},{store_key:'pth_quotations_v1',payload:[],updated_at:'1'}],version:1};
+  const a=setup(server);
+  a.values.set('pth_sor_v1','[{"id":99,"tests":[{"code":"LOCAL-ONLY"}]}]');
+  a.values.set('pth_quotations_v1','[{"number":"LOCAL-QUOTE"}]');
+  await a.api.hydrate();
+  const exported=JSON.stringify(a.api.recoverySnapshot());
+  assert.match(exported,/LOCAL-ONLY/);assert.match(exported,/LOCAL-QUOTE/);
+  assert.ok(!exported.includes('access_token'));
+  assert.equal(a.requests.filter(r=>r.options.method).length,0);
 });
