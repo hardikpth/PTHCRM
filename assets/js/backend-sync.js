@@ -18,6 +18,13 @@
   let recoverySession = false;
   let writeTimer = 0;
   const pending = new Map();
+  const writing = new Set();
+  const cacheKey = `pth_sync_versions_v2:${tenant}`;
+  let versions;
+  try { versions = JSON.parse(originalGetItem(cacheKey) || '{}'); } catch (_) { versions = {}; }
+  versions = versions && typeof versions === 'object' ? versions : {};
+  let hydration = null;
+  let flushing = null;
 
   function headers() {
     return { apikey: config.anonKey, Authorization: `Bearer ${token || config.anonKey}`, 'Content-Type': 'application/json' };
@@ -70,17 +77,26 @@
     } catch (error) { saveSession(null); return false; }
   }
   async function flush() {
+    if (flushing) return flushing;
     if (!enabled || !token || !pending.size) return;
     const rows = [...pending].map(([store_key, payload]) => ({ tenant_slug: tenant, store_key, payload, updated_at: new Date().toISOString() }));
     pending.clear();
+    rows.forEach(row => writing.add(row.store_key));
+    flushing = (async () => {
     try {
       await request('/rest/v1/app_state?on_conflict=tenant_slug,store_key', {
         method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows)
       });
     } catch (error) {
-      rows.forEach(row => pending.set(row.store_key, row.payload));
+      rows.forEach(row => { if (!pending.has(row.store_key)) pending.set(row.store_key, row.payload); });
       window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message }));
+    } finally {
+      rows.forEach(row => writing.delete(row.store_key));
+      flushing = null;
+      if (pending.size) { clearTimeout(writeTimer); writeTimer = setTimeout(flush, 5000); }
     }
+    })();
+    return flushing;
   }
   function scheduleWrite(key, value) {
     if (!enabled || !token || applyingRemote || !stores.has(key)) return;
@@ -90,21 +106,31 @@
   }
   async function hydrate() {
     if (!enabled || !token) return false;
-    const rows = await request(`/rest/v1/app_state?tenant_slug=eq.${encodeURIComponent(tenant)}&select=store_key,payload,updated_at`);
-    if (!rows.length) {
-      stores.forEach(key => { const value = originalGetItem(key); if (value != null) scheduleWrite(key, value); });
-      await flush();
-      return false;
-    }
+    if (hydration) return hydration;
+    hydration = (async () => {
+    // Read tiny version metadata first. Never download unchanged module payloads.
+    const base = `/rest/v1/app_state?tenant_slug=eq.${encodeURIComponent(tenant)}`;
+    const metadata = await request(`${base}&select=store_key,updated_at`);
+    const keys = metadata.filter(row => stores.has(row.store_key) && !pending.has(row.store_key) && !writing.has(row.store_key) &&
+      (versions[row.store_key] !== row.updated_at || originalGetItem(row.store_key) === null)).map(row => row.store_key);
+    if (!keys.length) return false;
+    // Keys are restricted to the fixed allowlist above, not user input.
+    const rows = await request(`${base}&store_key=in.(${keys.join(',')})&select=store_key,payload,updated_at`);
     let changed = false;
     applyingRemote = true;
+    try {
     rows.forEach(row => {
+      if (!stores.has(row.store_key) || pending.has(row.store_key) || writing.has(row.store_key)) return;
       const value = JSON.stringify(row.payload);
       if (originalGetItem(row.store_key) !== value) { originalSetItem(row.store_key, value); changed = true; }
+      versions[row.store_key] = row.updated_at;
     });
-    applyingRemote = false;
+    originalSetItem(cacheKey, JSON.stringify(versions));
+    } finally { applyingRemote = false; }
     window.dispatchEvent(new CustomEvent('pth-backend-hydrated', { detail: { stores: rows.length } }));
     return changed;
+    })();
+    try { return await hydration; } finally { hydration = null; }
   }
 
   localStorage.setItem = function syncedSetItem(key, value) { originalSetItem(key, value); scheduleWrite(key, value); };
@@ -121,9 +147,19 @@
   }
   const session = currentSession();
   token = session?.access_token || '';
-  if (enabled && session?.expires_at && session.expires_at * 1000 < Date.now() + 60000) refreshSession();
-  if (enabled && token) hydrate().then(changed => { if (changed) location.reload(); }).catch(error => window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })));
-  if (enabled) setInterval(() => token && hydrate().then(changed => { if (changed && !document.querySelector('.modal-scrim.open')) location.reload(); }).catch(() => {}), Math.max(5000, Number(config.syncIntervalMs) || 15000));
+  async function syncVisible() {
+    if (!enabled || !token || document.hidden) return;
+    const active = currentSession();
+    if (active?.expires_at && active.expires_at * 1000 < Date.now() + 60000 && !(await refreshSession())) return;
+    const changed = await hydrate();
+    if (changed && !pending.size && !writing.size && !document.querySelector('.modal-scrim.open')) location.reload();
+  }
+  const check = () => syncVisible().catch(error => window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })));
+  if (enabled) {
+    check();
+    setInterval(check, Math.max(60000, Number(config.syncIntervalMs) || 60000));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+  }
   window.addEventListener('beforeunload', flush);
   window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
 })();
