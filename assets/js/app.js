@@ -400,6 +400,13 @@ function navigate(route) {
   window.scrollTo(0, 0);
 }
 
+// Do not replace a user's in-progress quotation with a background refresh.
+window.PTHHasUnsavedChanges = () => state.route === 'createquotation' ||
+  ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+window.addEventListener('pth-backend-error', event => {
+  toast('Shared database save/sync needs attention', event.detail || 'Keep this tab open and check your connection.', 'err');
+});
+
 /* helper builders */
 function pageHead(title, desc, actions = '') {
   return `<div class="page-head">
@@ -817,7 +824,7 @@ const ENTERPRISE_ACTIVITY_DEFAULTS=['Call','Email','WhatsApp','Meeting','Site Vi
 let enterpriseCRM=(()=>{const defaults={siteVisits:[],competitors:[],clientFinance:{},quotationRevisions:[],customFields:[],activityTypes:ENTERPRISE_ACTIVITY_DEFAULTS.map((name,i)=>({id:`ACT-${i+1}`,name,active:true,color:['#176b4d','#2563eb','#16a34a','#7c3aed','#d97706','#0891b2','#be123c','#475569'][i]})),savedReports:[],reportSchedules:[],permissions:{'Laboratory Head':{financial:true,pricing:true,allRecords:true,approve:true,configure:true},'CRM Manager':{financial:true,pricing:true,allRecords:true,approve:false,configure:true},'Quality Manager':{financial:false,pricing:false,allRecords:true,approve:false,configure:false},'Technical Manager':{financial:false,pricing:true,allRecords:false,approve:false,configure:false},'Authorised Signatory':{financial:false,pricing:false,allRecords:false,approve:false,configure:false}},managementApprovals:[],retentionSettings:{dormantDays:45,criticalDays:90},reportLastRun:{}};try{const s=JSON.parse(localStorage.getItem(ENTERPRISE_CRM_KEY)||'{}');return{...defaults,...s,permissions:{...defaults.permissions,...(s.permissions||{})},retentionSettings:{...defaults.retentionSettings,...(s.retentionSettings||{})}};}catch(e){return defaults;}})();
 function persistEnterpriseCRM(){try{localStorage.setItem(ENTERPRISE_CRM_KEY,JSON.stringify(enterpriseCRM));}catch(e){}}
 function enterpriseRole(){return DB.user.role||'User';}
-function enterprisePermission(key){const role=enterpriseRole();if(role==='Director')return true;if(role==='Sales Executive')return key==='pricing';const p=enterpriseCRM.permissions[role]||{};return p[key]===true;}
+function enterprisePermission(key){const role=enterpriseRole();if(role==='Director')return true;if(role==='Sales Executive')return key==='pricing'||key==='allRecords';const p=enterpriseCRM.permissions[role]||{};return p[key]===true;}
 function enterpriseOwnerAliases(){return new Set([DB.user.name,DB.user.initials,...analyticsPersonAliases(DB.user.name)].filter(Boolean).map(x=>String(x).toLowerCase()));}
 function canViewCrmRecord(record){if(enterprisePermission('allRecords'))return true;const aliases=enterpriseOwnerAliases(),owner=String(record.person||record.assignee||record.createdBy||record.representative?.name||'').toLowerCase();return !owner||aliases.has(owner);}
 function maskFinancial(value){return enterprisePermission('financial')?inr(+value||0):'Restricted';}
@@ -2639,7 +2646,7 @@ const SOR_KEY = 'pth_sor_v1';
 const SOR_CLEANUP_KEY = 'pth_sor_manual_catalogue_v1';
 // Clear only the legacy SOR catalogue once. Saved quotations have their own line items and are not modified.
 try {
-  if (localStorage.getItem(SOR_CLEANUP_KEY) !== '1') {
+  if (!window.PTHBackend?.enabled && localStorage.getItem(SOR_CLEANUP_KEY) !== '1') {
     localStorage.setItem(SOR_KEY, '[]');
     localStorage.setItem(SOR_CLEANUP_KEY, '1');
   }
@@ -3360,7 +3367,7 @@ function restoreAppSession(){
   if(!user){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);return null;}
   DB.user={name:user.name,role:user.role,initials:user.initials};return user;
 }
-async function signOut(){localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);await window.PTHBackend?.signOut?.();location.href=location.pathname;}
+async function signOut(){try{await window.PTHBackend?.signOut?.();localStorage.removeItem(APP_AUTH_SESSION_KEY);sessionStorage.removeItem(APP_AUTH_SESSION_KEY);location.href=location.pathname;}catch(error){toast('Sign-out paused',error.message,'err');}}
 async function storePasswordInBrowser(user,password){
   if(!document.getElementById('loginSavePassword')?.checked)return;
   if(!window.PasswordCredential||!navigator.credentials?.store)return;
