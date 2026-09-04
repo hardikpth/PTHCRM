@@ -7,7 +7,7 @@
     'pth_enterprise_crm_v1', 'pth_pipeline_v1', 'pth_followups_v1',
     'pth_crm_credentials_v1', 'pth_clients_v1',
     'pth_quotations_v1', 'pth_users_v1', 'pth_brand_v1', 'pth_scopes_v1',
-    'pth_sor_v1', 'pth_quotation_layout_v1'
+    'pth_sor_v1', 'pth_quotation_layout_v1', 'pth_admin_settings_v2'
   ]);
   const originalSetItem = localStorage.setItem.bind(localStorage);
   const originalRemoveItem = localStorage.removeItem.bind(localStorage);
@@ -19,12 +19,35 @@
   let writeTimer = 0;
   const pending = new Map();
   const writing = new Set();
+  const bases = new Map();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function merge(base, local, remote) {
+    if (same(local, base)) return remote;
+    if (same(remote, base) || same(local, remote)) return local;
+    if ([base, local, remote].every(Array.isArray)) {
+      const field = ['id', 'number', 'code', 'username'].find(key => [base, local, remote].every(list => list.every(x => x && typeof x === 'object' && x[key] != null) && new Set(list.map(x => String(x[key]))).size === list.length));
+      if (field) {
+        const maps = [base, local, remote].map(list => new Map(list.map(x => [String(x[field]), x])));
+        return [...new Set([...maps[2].keys(), ...maps[1].keys()])].map(key => merge(...maps.map(map => map.get(key)))).filter(x => x !== undefined);
+      }
+    }
+    if ([base, local, remote].every(x => x && typeof x === 'object' && !Array.isArray(x))) {
+      const result = {};
+      for (const key of new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)])) {
+        const value = merge(base[key], local[key], remote[key]);
+        if (value !== undefined) result[key] = value;
+      }
+      return result;
+    }
+    throw new Error('Another user changed the same record. Your edit is kept in this tab but has NOT been shared. Copy your changes before reloading, then review the latest record and save again.');
+  }
   const cacheKey = `pth_sync_versions_v2:${tenant}`;
   let versions;
   try { versions = JSON.parse(originalGetItem(cacheKey) || '{}'); } catch (_) { versions = {}; }
   versions = versions && typeof versions === 'object' ? versions : {};
   let hydration = null;
   let flushing = null;
+  let needsReload = false;
 
   function headers() {
     return { apikey: config.anonKey, Authorization: `Bearer ${token || config.anonKey}`, 'Content-Type': 'application/json' };
@@ -50,6 +73,8 @@
     return { ...result, changed };
   }
   async function signOut() {
+    await flush();
+    if (pending.size || writing.size) throw new Error('Some changes have not reached the shared database. Keep this tab open and resolve the sync warning before signing out.');
     if (enabled && token) await request('/auth/v1/logout', { method: 'POST' }).catch(() => {});
     saveSession(null);
   }
@@ -79,28 +104,55 @@
   async function flush() {
     if (flushing) return flushing;
     if (!enabled || !token || !pending.size) return;
-    const rows = [...pending].map(([store_key, payload]) => ({ tenant_slug: tenant, store_key, payload, updated_at: new Date().toISOString() }));
+    const activeSession = currentSession();
+    if (activeSession?.expires_at && activeSession.expires_at * 1000 < Date.now() + 60000 && !(await refreshSession())) {
+      window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: 'Your session expired. Your edits are still in this tab; copy them before signing in again.' }));
+      return;
+    }
+    const rows = [...pending].map(([store_key, payload]) => ({ tenant_slug: tenant, store_key, payload }));
     pending.clear();
     rows.forEach(row => writing.add(row.store_key));
     flushing = (async () => {
     try {
-      await request('/rest/v1/app_state?on_conflict=tenant_slug,store_key', {
-        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows)
-      });
-    } catch (error) {
-      rows.forEach(row => { if (!pending.has(row.store_key)) pending.set(row.store_key, row.payload); });
-      window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message }));
+      for (const row of rows) {
+        try {
+          const path = `/rest/v1/app_state?tenant_slug=eq.${encodeURIComponent(tenant)}&store_key=eq.${row.store_key}`;
+          let saved = false;
+          for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+            const [remote] = await request(`${path}&select=payload,updated_at`);
+            const payload = remote ? merge(bases.get(row.store_key), row.payload, remote.payload) : row.payload;
+            const result = await request(remote ? `${path}&updated_at=eq.${encodeURIComponent(remote.updated_at)}&select=updated_at` : '/rest/v1/app_state?on_conflict=tenant_slug,store_key&select=updated_at', {
+              method: remote ? 'PATCH' : 'POST',
+              headers: { Prefer: remote ? 'return=representation' : 'resolution=ignore-duplicates,return=representation' },
+              body: JSON.stringify(remote ? { payload } : { ...row, payload })
+            });
+            if (!result?.length) continue; // Concurrent write: re-read and merge, never blind overwrite.
+            saved = true;
+            bases.set(row.store_key, row.payload);
+            // Force next hydration to update in-memory module state after a merge.
+            delete versions[row.store_key];
+            if (!same(payload, row.payload)) needsReload = true;
+          }
+          if (!saved) throw new Error('Shared data is busy. Your save will retry automatically. Keep this tab open.');
+        } catch (error) {
+          if (!pending.has(row.store_key)) pending.set(row.store_key, row.payload);
+          window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message }));
+        }
+      }
     } finally {
       rows.forEach(row => writing.delete(row.store_key));
       flushing = null;
-      if (pending.size) { clearTimeout(writeTimer); writeTimer = setTimeout(flush, 5000); }
+      if (pending.size) { clearTimeout(writeTimer); writeTimer = setTimeout(flush, 60000); }
     }
     })();
     return flushing;
   }
-  function scheduleWrite(key, value) {
+  function scheduleWrite(key, value, previous) {
     if (!enabled || !token || applyingRemote || !stores.has(key)) return;
-    try { pending.set(key, JSON.parse(value)); } catch (error) { return; }
+    try {
+      if (!bases.has(key)) bases.set(key, previous == null ? undefined : JSON.parse(previous));
+      pending.set(key, JSON.parse(value));
+    } catch (error) { return; }
     clearTimeout(writeTimer);
     writeTimer = setTimeout(flush, 450);
   }
@@ -124,6 +176,7 @@
       const value = JSON.stringify(row.payload);
       if (originalGetItem(row.store_key) !== value) { originalSetItem(row.store_key, value); changed = true; }
       versions[row.store_key] = row.updated_at;
+      bases.set(row.store_key, row.payload);
     });
     originalSetItem(cacheKey, JSON.stringify(versions));
     } finally { applyingRemote = false; }
@@ -133,8 +186,16 @@
     try { return await hydration; } finally { hydration = null; }
   }
 
-  localStorage.setItem = function syncedSetItem(key, value) { originalSetItem(key, value); scheduleWrite(key, value); };
-  localStorage.removeItem = function syncedRemoveItem(key) { originalRemoveItem(key); };
+  // Storage instances have named-property setters: assigning setItem on the
+  // instance can store a string instead of intercepting the native method.
+  const storagePrototype = typeof Storage !== 'undefined' ? Storage.prototype : localStorage;
+  const nativeSetItem = storagePrototype.setItem;
+  storagePrototype.setItem = function syncedSetItem(key, value) {
+    if (this !== localStorage) return nativeSetItem.call(this, key, value);
+    const previous = originalGetItem(key);
+    originalSetItem(key, value);
+    if (previous !== String(value)) scheduleWrite(key, value, previous);
+  };
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   if (hash.get('access_token')) {
     saveSession({
@@ -149,10 +210,12 @@
   token = session?.access_token || '';
   async function syncVisible() {
     if (!enabled || !token || document.hidden) return;
+    if (document.querySelector('.modal-scrim.open') || window.PTHHasUnsavedChanges?.()) return;
     const active = currentSession();
     if (active?.expires_at && active.expires_at * 1000 < Date.now() + 60000 && !(await refreshSession())) return;
     const changed = await hydrate();
-    if (changed && !pending.size && !writing.size && !document.querySelector('.modal-scrim.open')) location.reload();
+    needsReload = needsReload || changed;
+    if (needsReload && !pending.size && !writing.size && !document.querySelector('.modal-scrim.open') && !window.PTHHasUnsavedChanges?.()) location.reload();
   }
   const check = () => syncVisible().catch(error => window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })));
   if (enabled) {
@@ -160,6 +223,8 @@
     setInterval(check, Math.max(60000, Number(config.syncIntervalMs) || 60000));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
   }
-  window.addEventListener('beforeunload', flush);
+  window.addEventListener('beforeunload', event => {
+    if (pending.size || writing.size) { flush(); event.preventDefault(); event.returnValue = ''; }
+  });
   window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
 })();

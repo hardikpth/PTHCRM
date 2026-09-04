@@ -3,29 +3,44 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../assets/js/backend-sync.js'), 'utf8');
-function setup() {
+function setup(server = { rows: [{ store_key: 'pth_clients_v1', payload: [{ id: 1, name: 'Client' }], updated_at: '1' }], version: 1 }) {
   const values = new Map([['pth_backend_session_v1', JSON.stringify({ access_token: 'test' })]]);
   const requests = [], timers = [], events = {};
-  let rows = [{ store_key: 'pth_clients_v1', payload: [{ name: 'Client' }], updated_at: '1' }];
   let fail = false;
+  class Storage {
+    getItem(k) { return values.get(k) ?? null; }
+    setItem(k,v) { values.set(k,String(v)); }
+    removeItem(k) { values.delete(k); }
+  }
   const context = {
     URLSearchParams, Map, Set, Date, JSON, Boolean, Number,
-    localStorage: { getItem: k => values.get(k) ?? null, setItem: (k,v) => values.set(k,v), removeItem: k => values.delete(k) },
+    Storage, localStorage: new Storage(),
     document: { hidden: true, querySelector: () => null, addEventListener: (k,v) => { events[k] = v; } },
     location: { hash: '', search: '', pathname: '/', origin: 'https://test', reload() {} },
-    history: { replaceState() {} }, CustomEvent: class {},
+    history: { replaceState() {} }, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } },
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout() {},
     setInterval: (fn, ms) => { assert.equal(ms, 60000); events.poll = fn; },
     fetch: async (url, options) => {
       requests.push({ url, options });
-      if (options.method === 'POST') return { ok: !fail, status: fail ? 500 : 204, text: async () => 'failed' };
-      const payload = url.includes('select=store_key,payload');
-      return { ok: true, status: 200, json: async () => rows.map(r => payload ? r : { store_key: r.store_key, updated_at: r.updated_at }) };
+      const params = new URL(url).searchParams;
+      const key = params.get('store_key')?.replace(/^eq\./, '');
+      if (['POST','PATCH'].includes(options.method)) {
+        if (fail) return { ok: false, text: async () => 'failed' };
+        const body = JSON.parse(options.body);
+        let row = server.rows.find(r => r.store_key === (key || body.store_key));
+        if ((options.method === 'PATCH' && row?.updated_at !== params.get('updated_at')?.slice(3)) || (options.method === 'POST' && row)) return { ok: true, status: 200, json: async () => [] };
+        if (!row) { row = { store_key: body.store_key }; server.rows.push(row); }
+        row.payload = body.payload; row.updated_at = String(++server.version);
+        return { ok: true, status: 200, json: async () => [{ updated_at: row.updated_at }] };
+      }
+      const payload = params.get('select').includes('payload');
+      const rows = server.rows.filter(r => !key || key.startsWith('in.') || r.store_key === key);
+      return { ok: true, status: 200, json: async () => structuredClone(rows.map(r => payload ? r : { store_key: r.store_key, updated_at: r.updated_at })) };
     }
   };
-  context.window = { PTH_BACKEND_CONFIG: { url: 'https://test.supabase.co', anonKey: 'public' }, addEventListener() {}, dispatchEvent() {} };
+  context.window = { PTH_BACKEND_CONFIG: { url: 'https://test.supabase.co', anonKey: 'public' }, addEventListener() {}, dispatchEvent(event) { events[event.type] = event.detail; } };
   vm.runInNewContext(source, context);
-  return { context, values, requests, events, api: context.window.PTHBackend, setRows: r => rows = r, fail: v => fail = v };
+  return { context, values, requests, events, server, api: context.window.PTHBackend, setRows: r => server.rows = r, fail: v => fail = v };
 }
 test('initial download then metadata-only checks; changed payload fetched', async () => {
   const h = setup();
@@ -46,11 +61,12 @@ test('empty remote does not upload old browser data', async () => {
 });
 test('pending save cannot be overwritten by remote polling; saves remain minimal', async () => {
   const h = setup();
+  await h.api.hydrate();
   h.context.localStorage.setItem('pth_clients_v1', '["local"]');
   await h.api.hydrate();
   assert.equal(h.values.get('pth_clients_v1'), '["local"]');
   await h.api.flush();
-  assert.match(h.requests.at(-1).options.headers.Prefer, /return=minimal/);
+  assert.match(h.requests.at(-1).url, /select=updated_at/);
 });
 test('hidden tab polling makes no requests and concurrent hydration is coalesced', async () => {
   const h = setup(); await h.events.poll();
@@ -60,9 +76,52 @@ test('hidden tab polling makes no requests and concurrent hydration is coalesced
 });
 test('failed write retries the newest local value', async () => {
   const h = setup(); h.fail(true);
+  await h.api.hydrate();
   h.context.localStorage.setItem('pth_clients_v1', '["first"]');
   await h.api.flush();
   h.context.localStorage.setItem('pth_clients_v1', '["latest"]');
   h.fail(false); await h.api.flush();
   assert.match(h.requests.at(-1).options.body, /latest/);
+});
+test('two independent users share quotation additions without losing either', async () => {
+  const server = { rows: [{ store_key: 'pth_quotations_v1', payload: [], updated_at: '1' }], version: 1 };
+  const a = setup(server), b = setup(server);
+  await Promise.all([a.api.hydrate(), b.api.hydrate()]);
+  a.context.localStorage.setItem('pth_quotations_v1', JSON.stringify([{number:'Q1',total:100}]));
+  b.context.localStorage.setItem('pth_quotations_v1', JSON.stringify([{number:'Q2',total:200}]));
+  await Promise.all([a.api.flush(), b.api.flush()]);
+  await Promise.all([a.api.hydrate(), b.api.hydrate()]);
+  assert.equal(JSON.parse(a.values.get('pth_quotations_v1')).length, 2);
+  assert.equal(a.values.get('pth_quotations_v1'), b.values.get('pth_quotations_v1'));
+});
+test('conflicting edits do not overwrite another user', async () => {
+  const server = { rows: [{ store_key: 'pth_clients_v1', payload: [{id:1,name:'Original'}], updated_at:'1' }], version:1 };
+  const a = setup(server), b = setup(server);
+  await Promise.all([a.api.hydrate(), b.api.hydrate()]);
+  a.context.localStorage.setItem('pth_clients_v1','[{"id":1,"name":"A"}]');
+  b.context.localStorage.setItem('pth_clients_v1','[{"id":1,"name":"B"}]');
+  await a.api.flush(); await b.api.flush();
+  assert.equal(server.rows[0].payload[0].name,'A');
+  assert.match(b.values.get('pth_clients_v1'), /B/);
+  assert.match(b.events['pth-backend-error'], /NOT been shared/);
+});
+test('shared settings additions and updates reach a second user', async () => {
+  const server = { rows: [], version: 1 };
+  const a = setup(server), b = setup(server);
+  a.context.localStorage.setItem('pth_admin_settings_v2', '{"organisation":{"name":"PTH"}}');
+  await a.api.flush(); await b.api.hydrate();
+  assert.equal(b.values.get('pth_admin_settings_v2'), '{"organisation":{"name":"PTH"}}');
+  b.context.localStorage.setItem('pth_admin_settings_v2', '{"organisation":{"name":"PTH CRM"}}');
+  await b.api.flush(); await a.api.hydrate();
+  assert.match(a.values.get('pth_admin_settings_v2'), /PTH CRM/);
+});
+test('active form defers refresh until closed, then remote change becomes visible', async () => {
+  const h = setup(); let reloads = 0, form = true;
+  h.context.document.hidden = false;
+  h.context.location.reload = () => reloads++;
+  h.context.window.PTHHasUnsavedChanges = () => form;
+  await h.events.poll(); assert.equal(h.requests.length, 0);
+  form = false;
+  await h.events.poll(); assert.equal(reloads, 1);
+  assert.match(h.values.get('pth_clients_v1'), /Client/);
 });
