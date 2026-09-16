@@ -20,11 +20,12 @@ test('new quotations and credit risks never create approval requests', () => {
   assert.equal(fn('crmRuleEnabled')('rule-quote-approval'), false);
 });
 test('previously controlled quotations unlock without losing items or history', () => {
-  const normalize = fn('unrestrictedQuotation');
+  const normalizeStatus = fn('normalizeQuotationStatus');
+  const normalize = fn('unrestrictedQuotation',{normalizeQuotationStatus:normalizeStatus});
   for (const status of ['approval_pending','approved','approval_rejected']) {
     const q = {number:'Q1',status,items:[{rate:100}],approvedVersion:'historical'};
     const updated = normalize(q);
-    assert.equal(updated.status,'review'); assert.equal(updated.previousApprovalStatus,status);
+    assert.equal(updated.status,'under_process'); assert.equal(updated.previousLifecycleStatus,status);
     assert.equal(updated.items,q.items); assert.equal(updated.approvedVersion,'historical');
     assert.equal(q.status,status);
   }
@@ -36,5 +37,5 @@ test('editing has no approval lock and lifecycle controls offer no approval stat
   assert.ok(!edit.includes("q.status==='approval_pending'"));
   const drawer = source.split(/\r?\n/).find(x => x.startsWith('function openQuotationDrawer('));
   assert.ok(!drawer.includes('Approved & Locked'));
-  assert.ok(drawer.includes('controlled=false'));
+  assert.match(source,/Change Quotation Status/);
 });
