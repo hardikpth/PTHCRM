@@ -24,6 +24,8 @@
   const backupPrefix = `pth_recovery_v3:${tenant}:`;
   const writeIds = new Map();
   let syncError = '', lastCheck = '', lastSave = '';
+  let quotaRestricted = false;
+  const quotaMessage = 'The shared database has reached its Supabase free-plan network limit. Shared sync is paused, but changes remain safely saved on this device and will upload after Supabase restores the project quota.';
   function jsonRead(key, fallback = null) { try { return JSON.parse(originalGetItem(key) || 'null') ?? fallback; } catch (_) { return fallback; } }
   function status() {
     const sor = jsonRead('pth_sor_v1', []), quotes = jsonRead('pth_quotations_v1', []);
@@ -79,9 +81,14 @@
     return { apikey: config.anonKey, Authorization: `Bearer ${token || config.anonKey}`, 'Content-Type': 'application/json' };
   }
   async function request(path, options = {}) {
+    if (quotaRestricted) throw new Error(quotaMessage);
     const response = await fetch(`${config.url}${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
     if (!response.ok) {
       const body = await response.text();
+      if (response.status === 402 && /exceed(?:ed)?_egress_quota/i.test(body)) {
+        quotaRestricted = true;
+        throw new Error(quotaMessage);
+      }
       throw new Error(`Shared database HTTP ${response.status}: ${body || 'Request failed'}`);
     }
     return response.status === 204 ? null : response.json();
@@ -265,7 +272,10 @@
     needsReload = needsReload || changed;
     if (needsReload && !pending.size && !writing.size && !document.querySelector('.modal-scrim.open') && !window.PTHHasUnsavedChanges?.()) location.reload();
   }
-  const check = () => syncVisible().catch(error => { report(error.message); window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })); });
+  const check = () => {
+    if (quotaRestricted) return;
+    return syncVisible().catch(error => { report(error.message); window.dispatchEvent(new CustomEvent('pth-backend-error', { detail: error.message })); });
+  };
   if (enabled) {
     check();
     setInterval(check, Math.max(60000, Number(config.syncIntervalMs) || 60000));
@@ -276,3 +286,4 @@
   });
   window.PTHBackend = Object.freeze({ enabled, signIn, signOut, hydrate, flush, syncNow: check, status, recoverySnapshot, requestPasswordReset, updatePassword, hasSession: () => Boolean(token), isRecoverySession: () => recoverySession || new URLSearchParams(location.search).get('password-reset') === '1' });
 })();
+
